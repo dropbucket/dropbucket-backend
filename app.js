@@ -1,13 +1,14 @@
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
+import express from 'express';
+import path from 'path';
+import cookieParser from 'cookie-parser';
+import morgan from 'morgan';
 
-var filesRouter = require('./src/routes/files-route');
+import filesRouter from './src/routes/filesRoute.js';
 
-var app = express();
+const app = express();
+const __dirname = path.resolve();
 
-app.use(logger('dev'));
+app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
@@ -15,4 +16,4 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/files', filesRouter);
 
-module.exports = app;
+export default app;

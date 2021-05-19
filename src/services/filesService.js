@@ -1,40 +1,46 @@
-var AWS = require('aws-sdk');
-AWS.config.loadFromPath(__dirname + '/../../config/awsconfig.json');
+import AWS from 'aws-sdk';
+import dotenv from 'dotenv';
+dotenv.config();
 
-exports.findItem = async (request) => {
+export const findItem2 = async (req) => {
   console.log('connect');
   try {
     AWS.config.update({
-      // endpoint가 s3 일수도 있고, dynamodb일 수도 있으므로
-      // endpoint만 따로 설정해준다. 나머지는 config에서
-      endpoint: 'https://dynamodb.us-east-1.amazonaws.com',
+      region: process.env.AWS_REGION,
+      endpoint: "https://dynamodb.us-east-1.amazonaws.com",
+      accessKeyId: process.env.DYNAMODB_ACCESS_KEY,
+      secretAccessKey: process.env.DYNAMODB_SECRET_ACCESS_KEY,
+      sessionToken: process.env.DYNAMODB_SESSION_TOKEN
     });
 
     let docClient = new AWS.DynamoDB.DocumentClient();
     let params = {
       TableName: 'FileDirTable',
       Key: {
-        parent_id: request.parent_id,
-        id: request.id,
+        id: req.id,
+        parent_id: req.parent_id
       },
     };
 
     const data = await docClient.get(params).promise();
     console.log(JSON.stringify(data, null, 2));
     return data;
+
   } catch (err) {
     console.log(err);
     throw Error(err);
   }
 };
 
-exports.updateItem = async (request) => {
+export const updateItem2 = async (request) => {
   console.log('connect');
   try {
     AWS.config.update({
-      // endpoint가 s3 일수도 있고, dynamodb일 수도 있으므로
-      // endpoint만 따로 설정해준다. 나머지는 config에서
-      endpoint: 'https://dynamodb.us-east-1.amazonaws.com',
+      region: process.env.AWS_REGION, // 각자 사용하는 region
+      endpoint: "https://dynamodb.us-east-1.amazonaws.com",
+      accessKeyId: process.env.DYNAMODB_ACCESS_KEY,
+      secretAccessKey: process.env.DYNAMODB_SECRET_ACCESS_KEY,
+      sessionToken: process.env.DYNAMODB_SESSION_TOKEN
     });
 
     let docClient = new AWS.DynamoDB.DocumentClient();
