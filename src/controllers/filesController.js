@@ -1,4 +1,4 @@
-import { createFile2, findItem2, updateItem2 } from '../services/filesService.js';
+import { createFile2, findItem2, updateItem2, deleteItem2 } from '../services/filesService.js';
 
 export const createFile = async (req, res, next) => {
   try {
@@ -22,6 +22,15 @@ export const findItem = async (req, res, next) => {
 export const updateItem = async (req, res, next) => {
   try {
     let rows = await updateItem2(req.body);
+    return res.json(rows);
+  } catch (err) {
+    return res.status(500).json(err);
+  }
+};
+
+export const deleteItem = async (req, res, next) => {
+  try {
+    const rows = await deleteItem2(req.body);
     return res.json(rows);
   } catch (err) {
     return res.status(500).json(err);

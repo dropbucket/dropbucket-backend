@@ -44,13 +44,13 @@ export const createFile2 = async () => {
       Item: input
     };
 
-    const data = docClient.put(params).promise();
+    const data = await docClient.put(params).promise();
     console.log(JSON.stringify(data, null, 2));
 
     const resMessage = {
       'statusCode': 200,
-      'headers': {},
-      'body': JSON.stringify(data)
+      'success': true,
+      'msg': '파일 생성 완료'
     }
     return resMessage;
 
@@ -113,5 +113,41 @@ export const updateItem2 = async (request) => {
   } catch (err) {
     console.log(err);
     throw Error(err);
+  }
+};
+
+// file이 db에 없어도 오류 발생 안함
+export const deleteItem2 = async (req) => {
+  console.log('connect');
+  try {
+    AWS.config.update(awsConfig);
+
+    const docClient = new AWS.DynamoDB.DocumentClient();
+
+    const params = {
+      TableName: 'FileDirTable',
+      Key: {
+        parent_id: req.parent_id,
+        id: req.id,
+      },
+    };
+
+    const data = await docClient.delete(params).promise();
+    console.log(JSON.stringify(data, null, 2));
+
+    const resMessage = {
+      'statusCode': 200,
+      'success': true,
+      'msg': '파일 삭제 완료'
+    }
+    return resMessage;
+
+  } catch (err) {
+    const resMessage = {
+      'statusCode': 503,
+      'success': false,
+      'msg': '파일 삭제 실패'
+    }
+    return resMessage;
   }
 };
