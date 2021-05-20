@@ -11,14 +11,123 @@ const awsConfig = {
   sessionToken: process.env.DYNAMODB_SESSION_TOKEN,
 };
 
-export const createFolder2 = async (request) => {
+export const updateFolder2 = async (req) => {
   console.log('connect');
-  if (request.file_owner === '') {
-    return { statusCode: 200, success: false, msg: '로그인을 해주세요' };
+  if (req.file_owner === '') {
+    return { statusCode: 400, success: false, msg: '로그인을 해주세요' };
   }
-  if (request.content_type !== null) {
+  if (req.content_type !== null) {
     return {
+      statusCode: 400,
+      success: false,
+      msg: '경로가 잘못되었습니다. 폴더명과 설명을 수정하는 곳입니다.',
+    };
+  }
+  if (req.id === req.parent_id) {
+    return {
+      statusCode: 400,
+      success: false,
+      msg: '루트폴더의 이름은 변경할 수 없습니다.',
+    };
+  }
+
+  try {
+    AWS.config.update(awsConfig);
+    const docClient = new AWS.DynamoDB.DocumentClient();
+
+    const parentOwnerParam = {
+      TableName: 'FileDirTable',
+      Key: {
+        parent_id: req.parent_id,
+        id: req.id,
+      },
+    };
+
+    const owner = (await docClient.get(parentOwnerParam).promise()).Item;
+
+    // 폴더 주인 확인
+    if (req.file_owner !== owner.file_owner) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '폴더명과 설명을 변경할 권한이 없습니다.',
+      };
+    }
+
+    // 중복이름을 확인하기위해 부모폴더에 있는 것들을 가져온다.
+    const rootValidParam = {
+      TableName: 'FileDirTable',
+      KeyConditionExpression: '#parent_id = :parent_id',
+      ExpressionAttributeNames: {
+        '#parent_id': 'parent_id',
+      },
+      ExpressionAttributeValues: {
+        ':parent_id': req.parent_id,
+      },
+    };
+
+    const folders = (await docClient.query(rootValidParam).promise()).Items;
+    console.log(folders);
+    // 파일명 중복 체크
+    for (let i = 0; i < folders.length; i++) {
+      if (req.change_foldername === folders[i].filename) {
+        return {
+          statusCode: 400,
+          success: false,
+          msg: '폴더 이름이 중복됩니다.',
+        };
+      }
+    }
+
+    const change = {
+      TableName: 'FileDirTable',
+      Key: {
+        id: req.id,
+        parent_id: req.parent_id,
+      },
+      UpdateExpression:
+        'SET #filename = :filename, #description = :description, #last_modified_at = :last_modified_at',
+      ExpressionAttributeNames: {
+        '#description': 'description',
+        '#filename': 'filename',
+        '#last_modified_at': 'last_modified_at',
+      },
+      // 위에서 고른것을 변경한다. 이때 지정해준 이름을 사용해야 한다.
+      ExpressionAttributeValues: {
+        ':description': req.change_description,
+        ':filename': req.change_foldername,
+        ':last_modified_at': Date.now(),
+      },
+      ReturnValues: 'UPDATED_NEW',
+    };
+
+    const params = {
+      TableName: 'FileDirTable',
+      Item: change,
+    };
+
+    const data = docClient.update(change).promise();
+
+    const resMessage = {
       statusCode: 200,
+      success: true,
+      msg: '폴더 수정 완료',
+    };
+    return resMessage;
+  } catch (err) {
+    console.log(err);
+    throw Error(err);
+  }
+};
+
+export const createFolder2 = async (req) => {
+  console.log('connect');
+  if (req.file_owner === '') {
+    return { statusCode: 400, success: false, msg: '로그인을 해주세요' };
+  }
+  if (req.content_type !== null) {
+    return {
+      statusCode: 400,
       success: false,
       msg: '경로가 잘못되었습니다. 폴더를 생성하는 곳입니다.',
     };
@@ -30,11 +139,11 @@ export const createFolder2 = async (request) => {
     let id = uuid.v1().toString();
     const docClient = new AWS.DynamoDB.DocumentClient();
     // 폴더도 s3에 저장할지??
-    if (request.parent_id === 'create root') {
+    if (req.parent_id === 'create root') {
       input = {
         parent_id: id,
         id: id,
-        file_owner: request.file_owner,
+        file_owner: req.file_owner,
         filename: 'root',
         description: 'root',
         size: 0,
@@ -59,7 +168,7 @@ export const createFolder2 = async (request) => {
           '#parent_id': 'parent_id',
         },
         ExpressionAttributeValues: {
-          ':parent_id': request.parent_id,
+          ':parent_id': req.parent_id,
         },
       };
 
@@ -68,16 +177,16 @@ export const createFolder2 = async (request) => {
       // 존재하지 않는 경우
       if (folders.length === 0) {
         return {
-          statusCode: 200,
+          statusCode: 400,
           success: false,
           msg: '존재하지 않는 폴더에 폴더를 생성할 수 없습니다.',
         };
       }
 
       // 폴더 주인 확인
-      if (folders[0].file_owner !== request.file_owner) {
+      if (folders[0].file_owner !== req.file_owner) {
         return {
-          statusCode: 200,
+          statusCode: 400,
           success: false,
           msg: '폴더를 생성할 권한이 없습니다.',
         };
@@ -85,9 +194,9 @@ export const createFolder2 = async (request) => {
 
       // 파일명 중복 체크
       for (let i = 0; i < folders.length; i++) {
-        if (request.filename === folders[i].filename) {
+        if (req.filename === folders[i].filename) {
           return {
-            statusCode: 200,
+            statusCode: 400,
             success: false,
             msg: '폴더 이름이 중복됩니다.',
           };
@@ -96,11 +205,11 @@ export const createFolder2 = async (request) => {
 
       // 값을 넣는 부분
       input = {
-        parent_id: request.parent_id,
+        parent_id: req.parent_id,
         id: id,
-        file_owner: request.file_owner,
-        filename: request.filename,
-        description: request.description,
+        file_owner: req.file_owner,
+        filename: req.filename,
+        description: req.description,
         size: 0,
         content_type: null,
         is_deleted: false,
