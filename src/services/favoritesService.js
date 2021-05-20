@@ -69,7 +69,14 @@ export const switchFavorites2 = async (req) => {
 
     data = await docClient.update(params).promise();
     console.log(JSON.stringify(data, null, 2));
-    return data;
+    const resMessage = {
+      statusCode: 200,
+      success: true,
+      is_starred: data.Attributes.is_starred,
+      msg: '즐겨찾기 설정/해제 완료',
+    };
+
+    return resMessage;
   } catch (err) {
     console.log(err);
     throw Error(err);
