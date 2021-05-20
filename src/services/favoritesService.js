@@ -16,9 +16,10 @@ export const showFavorites2 = async (req) => {
     let docClient = new AWS.DynamoDB.DocumentClient();
     let params = {
       TableName: 'FileDirTable',
-      FilterExpression: 'is_starred = :tr',
+      FilterExpression: 'is_starred = :tr and file_owner = :fo',
       ExpressionAttributeValues: {
         ':tr': true,
+        ':fo': req.file_owner,
       },
     };
 
