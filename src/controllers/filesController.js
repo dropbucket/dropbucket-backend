@@ -1,8 +1,13 @@
-import { findItem2, updateItem2 } from '../services/filesService.js';
+import {
+  findItem2,
+  updateItem2,
+  createFolder2,
+} from '../services/filesService.js';
 
 export const findItem = async (req, res, next) => {
   try {
     let rows = await findItem2(req.body);
+    console.log(rows.me);
     return res.json(rows);
   } catch (err) {
     return res.status(500).json(err);
@@ -12,6 +17,15 @@ export const findItem = async (req, res, next) => {
 export const updateItem = async (req, res, next) => {
   try {
     let rows = await updateItem2(req.body);
+    return res.json(rows);
+  } catch (err) {
+    return res.status(500).json(err);
+  }
+};
+
+export const createFolder = async (req, res, next) => {
+  try {
+    let rows = await createFolder2(req.body);
     return res.json(rows);
   } catch (err) {
     return res.status(500).json(err);
