@@ -49,41 +49,26 @@ export const switchFavorites2 = async (req) => {
         parent_id: req.parent_id,
         id: req.id,
       },
+    };
+
+    let data = await docClient.get(params).promise();
+    let is_starred = data.Item.is_starred;
+    params = {
+      TableName: 'FileDirTable',
+      Key: {
+        parent_id: req.parent_id,
+        id: req.id,
+      },
       UpdateExpression: 'set is_starred = :n',
       ExpressionAttributeValues: {
-        ':n': !req.is_starred,
+        ':n': !is_starred,
       },
       ReturnValues: 'UPDATED_NEW',
     };
 
-    await docClient
-      .get(params)
-      .promise()
-      .then((data) => {
-        let is_starred = data.Item.is_starred;
-        params = {
-          TableName: 'FileDirTable',
-          Key: {
-            parent_id: req.parent_id,
-            id: req.id,
-          },
-          UpdateExpression: 'set is_starred = :n',
-          ExpressionAttributeValues: {
-            ':n': !is_starred,
-          },
-          ReturnValues: 'UPDATED_NEW',
-        };
-        data = docClient
-          .update(params)
-          .promise()
-          .then((data) => {
-            console.log(JSON.stringify(data, null, 2));
-            return data;
-          });
-      })
-      .catch((err) => {
-        console.log(err);
-      });
+    data = await docClient.update(params).promise();
+    console.log(JSON.stringify(data, null, 2));
+    return data;
   } catch (err) {
     console.log(err);
     throw Error(err);
