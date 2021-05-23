@@ -1,6 +1,6 @@
 import AWS from 'aws-sdk';
 import dotenv from 'dotenv';
-import uuid from 'uuid';
+// import uuid from 'uuid';
 dotenv.config();
 
 // AWS Config
@@ -11,24 +11,45 @@ const awsConfig = {
   sessionToken: process.env.DYNAMODB_SESSION_TOKEN
 };
 
-export const uuidID = uuid.v1().toString();
-
 export const uploadFile2 = async (req) => {
   try {
-    // console.log(req.file);
-    // console.log(req.body.file_owner);
     AWS.config.update(awsConfig);
     const docClient = new AWS.DynamoDB.DocumentClient({ endpoint: "https://dynamodb.us-east-1.amazonaws.com" });
-    
+
+    // 같은 parent_id을 가진 파일들 조회
+    const fileArrOfSameDir = await docClient
+      .query({
+        TableName: 'FileDirTable',
+        KeyConditionExpression: '#parent_id = :parent_id',
+        ExpressionAttributeNames: {
+          '#parent_id': 'parent_id',
+        },
+        ExpressionAttributeValues: {
+          ':parent_id': req.body.parent_id,
+        }
+      })
+      .promise();
+    // console.log(JSON.stringify(fileArrOfSameDir, null, 2));
+
+    let fileName = req.file.originalname.split('.');   // 'test.png' -> ['test', 'png']
+
+    // 폴더 내에 같은 filename이 존재하면 이름 변경 e.g. 'test.png' -> 'test-(1).png' -> 'test-(2).png'
+    fileArrOfSameDir.Items.forEach((item) => {
+      if (item.filename.split('.')[0] == fileName[0]) {
+        fileName[0].indexOf('-(') != -1
+        ? fileName[0] = `${fileName[0].slice(0, fileName[0].indexOf('-(')+2)}${+fileName[0][fileName[0].indexOf('-(')+2] + 1}${')'}`
+        : fileName[0] = `${fileName[0]}-(1)`
+      }
+    });
 
     const params = {
       TableName: 'FileDirTable',
       Item: {
-        parent_id: "38c9fc40-b573-11eb-8616-e991aa0e1397", // parent_id를 어떻게 알 수 있을까?
         id: uuidID,
+        parent_id: req.body.parent_id,
         file_owner: req.body.file_owner,
-        filename: req.file.originalname,
-        description: req.body.description,
+        filename: fileName.join('.'),
+        description: null,
         size: req.file.size,
         content_type: req.file.mimetype,
         is_deleted: false,
@@ -44,7 +65,7 @@ export const uploadFile2 = async (req) => {
       }
     };
 
-    const data = await docClient.put(params).promise();
+    const data = await docClient.put(params).promise();  // DynamoDB table에 item 추가
     console.log(JSON.stringify(data, null, 2));
 
     const resMessage = {
@@ -59,6 +80,33 @@ export const uploadFile2 = async (req) => {
     throw Error(err);
   }
 };
+
+
+// export const downloadFile2 = async (req) => {
+//   try {
+//     AWS.config.update(awsConfig);
+//     const docClient = new AWS.DynamoDB.DocumentClient({ endpoint: "https://dynamodb.us-east-1.amazonaws.com" });
+//     const s3 = new AWS.S3({ endpoint: "https://s3.us-east-1.amazonaws.com" });
+    
+//     let params = {
+//       TableName: 'FileDirTable',
+//       Key: {
+//         id: req.id,
+//         parent_id: req.parent_id
+//       },
+//     };
+
+//     const data = await docClient.get(params).promise();
+//     console.log(JSON.stringify(data, null, 2));
+//     return data;
+
+//   } catch (err) {
+//     console.log(err);
+//     throw Error(err);
+//   }
+// };
+
+
 
 // export const findItem2 = async (req) => {
 //   console.log('connect');
@@ -116,70 +164,72 @@ export const uploadFile2 = async (req) => {
 //   }
 // };
 
-const deleteToS3 = async (data) => {
-  const s3 = new AWS.S3({ endpoint: "https://s3.us-east-1.amazonaws.com" });
+// delete 관련은 스케쥴러에 의해 발생하므로 여기선 제외
 
-  // 단일 Object 삭제
-  s3.deleteObject({
-    Bucket: 'dropbucket-file',
-    Key: data
-  }, (err, data) => {
-    if (err) console.log(err);
-    else console.log('s3 deleteObject ', data)
-  });
+// const deleteToS3 = async (data) => {
+//   const s3 = new AWS.S3({ endpoint: "https://s3.us-east-1.amazonaws.com" });
 
-  // 여러 파일 삭제용
-  // const params = {
-  //   Bucket: "examplebucket", 
-  //   Delete: {
-  //    Objects: [
-  //       {
-  //      Key: "HappyFace.jpg", 
-  //      VersionId: "2LWg7lQLnY41.maGB5Z6SWW.dcq0vx7b"
-  //     }, 
-  //       {
-  //      Key: "HappyFace.jpg", 
-  //      VersionId: "yoz3HB.ZhCS_tKVEmIOr7qYyyAaZSKVd"
-  //     }
-  //    ], 
-  //    Quiet: false
-  //   }
-  //  };
-};
+//   // 단일 Object 삭제
+//   s3.deleteObject({
+//     Bucket: 'dropbucket-file',
+//     Key: data
+//   }, (err, data) => {
+//     if (err) console.log(err);
+//     else console.log('s3 deleteObject ', data)
+//   });
 
-// file이 db에 없어도 오류 발생 안함
-export const deleteFile2 = async (req) => {
-  try {
-    AWS.config.update(awsConfig);
-    const docClient = new AWS.DynamoDB.DocumentClient({ endpoint: "https://dynamodb.us-east-1.amazonaws.com" });
+//   // 여러 파일 삭제용
+//   // const params = {
+//   //   Bucket: "examplebucket", 
+//   //   Delete: {
+//   //    Objects: [
+//   //       {
+//   //      Key: "HappyFace.jpg", 
+//   //      VersionId: "2LWg7lQLnY41.maGB5Z6SWW.dcq0vx7b"
+//   //     }, 
+//   //       {
+//   //      Key: "HappyFace.jpg", 
+//   //      VersionId: "yoz3HB.ZhCS_tKVEmIOr7qYyyAaZSKVd"
+//   //     }
+//   //    ], 
+//   //    Quiet: false
+//   //   }
+//   //  };
+// };
 
-    const params = {
-      TableName: 'FileDirTable',
-      Key: {
-        parent_id: req.parent_id,
-        id: req.id,
-      },
-    };
+// // file이 db에 없어도 오류 발생 안함
+// export const deleteFile2 = async (req) => {
+//   try {
+//     AWS.config.update(awsConfig);
+//     const docClient = new AWS.DynamoDB.DocumentClient({ endpoint: "https://dynamodb.us-east-1.amazonaws.com" });
 
-    const data = await docClient.delete(params).promise();
-    console.log(JSON.stringify(data, null, 2));
+//     const params = {
+//       TableName: 'FileDirTable',
+//       Key: {
+//         parent_id: req.parent_id,
+//         id: req.id,
+//       },
+//     };
 
-    const resMessage = {
-      'statusCode': 200,
-      'success': true,
-      'msg': '파일 삭제 완료'
-    }
+//     const data = await docClient.delete(params).promise();
+//     console.log(JSON.stringify(data, null, 2));
 
-    deleteToS3('test.png');
+//     const resMessage = {
+//       'statusCode': 200,
+//       'success': true,
+//       'msg': '파일 삭제 완료'
+//     }
 
-    return resMessage;
+//     deleteToS3('test.png');
 
-  } catch (err) {
-    const resMessage = {
-      'statusCode': 503,
-      'success': false,
-      'msg': '파일 삭제 실패'
-    }
-    return resMessage;
-  }
-};
+//     return resMessage;
+
+//   } catch (err) {
+//     const resMessage = {
+//       'statusCode': 503,
+//       'success': false,
+//       'msg': '파일 삭제 실패'
+//     }
+//     return resMessage;
+//   }
+// };
