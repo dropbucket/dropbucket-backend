@@ -39,8 +39,8 @@ const uploadToS3 = multer({
 
 // file 관련 router
 router.post('/', uploadToS3.single('img'), uploadFile); // 파일 업로드
+// router.get('/download', downloadFile);                  // 파일 다운로드
 router.get('/', findFiles);                             // 현 폴더 내의 파일들 정보 조회
-// router.get('/download', downloadFile);                    // 파일 다운로드
 // router.patch('/item', updateItem);  // 파일 수정
 // router.delete('/', deleteFile);     // 파일 삭제인데 안쓸 예정
 

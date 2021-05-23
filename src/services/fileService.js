@@ -1,6 +1,5 @@
 import AWS from 'aws-sdk';
 import dotenv from 'dotenv';
-// import uuid from 'uuid';
 dotenv.config();
 
 // AWS Config
@@ -84,17 +83,19 @@ export const uploadFile2 = async (req) => {
 //   try {
 //     AWS.config.update(awsConfig);
 //     const docClient = new AWS.DynamoDB.DocumentClient({ endpoint: "https://dynamodb.us-east-1.amazonaws.com" });
-//     const s3 = new AWS.S3({ endpoint: "https://s3.us-east-1.amazonaws.com" });
+//     // const s3 = new AWS.S3({ endpoint: "https://s3.us-east-1.amazonaws.com" });
     
-//     let params = {
+//     const params = ;
+
+//     const data = await docClient.get({
 //       TableName: 'FileDirTable',
 //       Key: {
-//         id: req.id,
-//         parent_id: req.parent_id
-//       },
-//     };
+//         parent_id: req.parent_id,
+//         id: req.id
+//       }
+//     })
+//     .promise();
 
-//     const data = await docClient.get(params).promise();
 //     console.log(JSON.stringify(data, null, 2));
 //     return data;
 
@@ -110,8 +111,7 @@ export const findFiles2 = async (req) => {
     const docClient = new AWS.DynamoDB.DocumentClient({ endpoint: "https://dynamodb.us-east-1.amazonaws.com" });
 
     // 같은 parent_id을 가진 파일들 조회
-    const fileArrOfSameDir = await docClient
-      .query({
+    const fileArrOfSameDir = await docClient.query({
         TableName: 'FileDirTable',
         KeyConditionExpression: '#parent_id = :parent_id',
         ExpressionAttributeNames: {
