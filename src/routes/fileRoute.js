@@ -5,7 +5,7 @@ import multerS3 from 'multer-s3';
 import dotenv from 'dotenv';
 import uuid from 'uuid';
 
-import { uploadFile, downloadFile } from '../controllers/fileController.js';
+import { uploadFile, findFiles } from '../controllers/fileController.js';
 
 dotenv.config();
 
@@ -38,10 +38,9 @@ const uploadToS3 = multer({
 //
 
 // file 관련 router
-router.post('/', uploadToS3.single('img'), uploadFile);   // 파일 업로드
-// router.post('/', uploadFile);   // 파일 업로드
-// router.get('/', downloadFile);                            // 현 폴더 내의 파일들 정보 조회
-router.get('/download', downloadFile);                    // 파일 다운로드
+router.post('/', uploadToS3.single('img'), uploadFile); // 파일 업로드
+router.get('/', findFiles);                             // 현 폴더 내의 파일들 정보 조회
+// router.get('/download', downloadFile);                    // 파일 다운로드
 // router.patch('/item', updateItem);  // 파일 수정
 // router.delete('/', deleteFile);     // 파일 삭제인데 안쓸 예정
 

@@ -68,13 +68,11 @@ export const uploadFile2 = async (req) => {
     const data = await docClient.put(params).promise();  // DynamoDB table에 item 추가
     console.log(JSON.stringify(data, null, 2));
 
-    const resMessage = {
+    return {
       'statusCode': 200,
       'success': true,
       'msg': '파일 생성 완료'
-    }
-    return resMessage;
-
+    };
   } catch (err) {
     console.log(err);
     throw Error(err);
@@ -106,31 +104,42 @@ export const uploadFile2 = async (req) => {
 //   }
 // };
 
+export const findFiles2 = async (req) => {
+  try {
+    AWS.config.update(awsConfig);
+    const docClient = new AWS.DynamoDB.DocumentClient({ endpoint: "https://dynamodb.us-east-1.amazonaws.com" });
 
+    // 같은 parent_id을 가진 파일들 조회
+    const fileArrOfSameDir = await docClient
+      .query({
+        TableName: 'FileDirTable',
+        KeyConditionExpression: '#parent_id = :parent_id',
+        ExpressionAttributeNames: {
+          '#parent_id': 'parent_id',
+        },
+        ExpressionAttributeValues: {
+          ':parent_id': req.parent_id,
+        }
+      })
+      .promise();
 
-// export const findItem2 = async (req) => {
-//   console.log('connect');
-//   try {
-//     AWS.config.update(awsConfig);
-
-//     let docClient = new AWS.DynamoDB.DocumentClient();
-//     let params = {
-//       TableName: 'FileDirTable',
-//       Key: {
-//         id: req.id,
-//         parent_id: req.parent_id
-//       },
-//     };
-
-//     const data = await docClient.get(params).promise();
-//     console.log(JSON.stringify(data, null, 2));
-//     return data;
-
-//   } catch (err) {
-//     console.log(err);
-//     throw Error(err);
-//   }
-// };
+    // const data = await docClient.get(params).promise();
+    console.log(JSON.stringify(fileArrOfSameDir, null, 2));
+    return {
+      'statusCode': 200,
+      'success': true,
+      'msg': '파일 조회 성공',
+      'data': fileArrOfSameDir
+    };
+  } catch (err) {
+    console.log(err);
+    return {
+      'statusCode': 503,
+      'success': false,
+      'msg': '파일 조회 실패'
+    };
+  }
+};
 
 // export const updateItem2 = async (request) => {
 //   console.log('connect');
