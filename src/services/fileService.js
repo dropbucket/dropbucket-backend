@@ -1,5 +1,6 @@
 import AWS from 'aws-sdk';
 import dotenv from 'dotenv';
+import fs from 'fs';
 dotenv.config();
 
 // AWS Config
@@ -14,7 +15,7 @@ export const uploadFile2 = async (req) => {
   try {
     AWS.config.update(awsConfig);
     const docClient = new AWS.DynamoDB.DocumentClient({ endpoint: "https://dynamodb.us-east-1.amazonaws.com" });
-
+    
     // 같은 parent_id을 가진 파일들 조회
     const fileArrOfSameDir = await docClient
       .query({
@@ -41,7 +42,8 @@ export const uploadFile2 = async (req) => {
       }
     });
 
-    const params = {
+    // DynamoDB table에 item 추가
+    const data = await docClient.put({
       TableName: 'FileDirTable',
       Item: {
         id: uuidID,
@@ -62,10 +64,10 @@ export const uploadFile2 = async (req) => {
         directory: "arn:aws:s3:::dropbucket-file",
         shared_url: null,
       }
-    };
+    })
+    .promise();
 
-    const data = await docClient.put(params).promise();  // DynamoDB table에 item 추가
-    console.log(JSON.stringify(data, null, 2));
+    // console.log(JSON.stringify(data, null, 2));
 
     return {
       'statusCode': 200,
@@ -78,32 +80,42 @@ export const uploadFile2 = async (req) => {
   }
 };
 
-
-// export const downloadFile2 = async (req) => {
-//   try {
-//     AWS.config.update(awsConfig);
-//     const docClient = new AWS.DynamoDB.DocumentClient({ endpoint: "https://dynamodb.us-east-1.amazonaws.com" });
-//     // const s3 = new AWS.S3({ endpoint: "https://s3.us-east-1.amazonaws.com" });
+export const downloadFile2 = async (req) => {
+  try {
+    AWS.config.update(awsConfig);
+    const docClient = new AWS.DynamoDB.DocumentClient({ endpoint: "https://dynamodb.us-east-1.amazonaws.com" });
+    const s3 = new AWS.S3({ endpoint: "https://s3.us-east-1.amazonaws.com" });
+  
+    s3.getObject({
+      Bucket: 'dropbucket-file',
+      Key: req.id
+    }, (err, data) => {
+      if (err) {  // an error occurred
+        console.log(err, err.stack);
+      } else {  // successful response
+        // 로컬상에 다운로드 받길 원하면 주석 풀고 폴더 및 파일 하나를 아무대나 생성하고 절대값 주소를 아래에 넣으면 된다.
+        // fs.writeFileSync('/Users/dykoon/workspace/dropbucket-backend/download/test.png', data.Body);  // 절대값 주소
+        console.log(data);
+      }
+    });
     
-//     const params = ;
+    // db에서 id를 가진 filename을 찾아서 변경 추가 예정
+    // 현재는 로컬상에 저장한다. 추후에 front단으로 전달 예정
 
-//     const data = await docClient.get({
-//       TableName: 'FileDirTable',
-//       Key: {
-//         parent_id: req.parent_id,
-//         id: req.id
-//       }
-//     })
-//     .promise();
-
-//     console.log(JSON.stringify(data, null, 2));
-//     return data;
-
-//   } catch (err) {
-//     console.log(err);
-//     throw Error(err);
-//   }
-// };
+    return {
+      'statusCode': 200,
+      'success': true,
+      'msg': '파일 다운로드 완료'
+    };
+  } catch (err) {
+    console.log(err);
+    return {
+      'statusCode': 503,
+      'success': false,
+      'msg': '파일 다운로드 실패'
+    };
+  }
+};
 
 export const findFiles2 = async (req) => {
   try {
