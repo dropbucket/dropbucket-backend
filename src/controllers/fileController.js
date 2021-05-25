@@ -1,5 +1,4 @@
-// import { createFile2, findItem2, updateItem2, deleteItem2 } from '../services/fileService.js';
-import { uploadFile2, downloadFile2, findFiles2 } from '../services/fileService.js';
+import { uploadFile2, downloadFile2, findFile2, updateFile2 } from '../services/fileService.js';
 
 export const uploadFile = async (req, res, next) => {
   try {
@@ -19,23 +18,23 @@ export const downloadFile = async (req, res, next) => {
   }
 };
 
-export const findFiles = async (req, res, next) => {
+export const findFile = async (req, res, next) => {
   try {
-    const rows = await findFiles2(req.body);
+    const rows = await findFile2(req.body);
     return res.json(rows);
   } catch (err) {
     return res.status(500).json(err);
   }
 };
 
-// export const updateItem = async (req, res, next) => {
-//   try {
-//     let rows = await updateItem2(req.body);
-//     return res.json(rows);
-//   } catch (err) {
-//     return res.status(500).json(err);
-//   }
-// };
+export const updateFile = async (req, res, next) => {
+  try {
+    let rows = await updateFile2(req.body);
+    return res.json(rows);
+  } catch (err) {
+    return res.status(500).json(err);
+  }
+};
 
 // export const deleteFile = async (req, res, next) => {
 //   try {

@@ -1,5 +1,8 @@
 import AWS from 'aws-sdk';
+import multer from 'multer';
+import multerS3 from 'multer-s3';
 import dotenv from 'dotenv';
+import uuid from 'uuid';
 import fs from 'fs';
 dotenv.config();
 
@@ -11,11 +14,36 @@ const awsConfig = {
   sessionToken: process.env.DYNAMODB_SESSION_TOKEN
 };
 
+export const uploadS3 = async () => {
+  AWS.config.update(awsConfig);
+  const s3 = new AWS.S3({ endpoint: "https://s3.us-east-1.amazonaws.com" });
+  
+  const uuidID = uuid.v1().toString();
+  console.log(uuidID);
+  global.uuidID = uuidID
+
+  return multer({
+    storage: multerS3({
+      s3: s3,
+      acl: 'public-read',
+      bucket: 'dropbucket-file',
+      contentType: multerS3.AUTO_CONTENT_TYPE,
+      contentDisposition(req, file, cb) {
+        cb(null, `inline; filename=${file.originalname}`);  // inline
+      },
+      key(req, file, cb) {
+        cb(null, global.uuidID);  // s3에 저장될 때의 파일 이름
+      }
+    })
+  });
+}
+
 export const uploadFile2 = async (req) => {
   try {
+    console.log(req.file);
     AWS.config.update(awsConfig);
     const docClient = new AWS.DynamoDB.DocumentClient({ endpoint: "https://dynamodb.us-east-1.amazonaws.com" });
-    
+
     // 같은 parent_id을 가진 파일들 조회
     const fileArrOfSameDir = await docClient
       .query({
@@ -46,7 +74,7 @@ export const uploadFile2 = async (req) => {
     const data = await docClient.put({
       TableName: 'FileDirTable',
       Item: {
-        id: uuidID,
+        id: global.uuidID,
         parent_id: req.body.parent_id,
         file_owner: req.body.file_owner,
         filename: fileName.join('.'),
@@ -79,6 +107,9 @@ export const uploadFile2 = async (req) => {
     throw Error(err);
   }
 };
+
+
+
 
 export const downloadFile2 = async (req) => {
   try {
@@ -117,7 +148,7 @@ export const downloadFile2 = async (req) => {
   }
 };
 
-export const findFiles2 = async (req) => {
+export const findFile2 = async (req) => {
   try {
     AWS.config.update(awsConfig);
     const docClient = new AWS.DynamoDB.DocumentClient({ endpoint: "https://dynamodb.us-east-1.amazonaws.com" });
@@ -153,37 +184,48 @@ export const findFiles2 = async (req) => {
   }
 };
 
-// export const updateItem2 = async (request) => {
-//   console.log('connect');
-//   try {
-//     AWS.config.update(awsConfig);
+export const updateFile2 = async (req) => {
+  try {
+    AWS.config.update(awsConfig);
+    const docClient = new AWS.DynamoDB.DocumentClient({ endpoint: "https://dynamodb.us-east-1.amazonaws.com" });
 
-//     let docClient = new AWS.DynamoDB.DocumentClient();
-//     let params = {
-//       TableName: 'FileDirTable',
-//       Key: {
-//         parent_id: request.parent_id,
-//         id: request.id,
-//       },
-//       // 어떤 것을 변경할지 고르고 그것의 이름을 지정해준다.
-//       // 이때 속성명이 dynamodb의 예약어와 동일하면 충돌이 발생해 오류가 발생할 수 있다.
-//       UpdateExpression: 'set me = :me',
+    // 변경
+    const data = await docClient.update({
+      TableName: 'FileDirTable',
+      Key: {
+        parent_id: req.parent_id,
+        id: req.id,
+      },
+      // 어떤 것을 변경할지 고르고 그것의 이름을 지정해준다.
+      // 이때 속성명이 dynamodb의 예약어와 동일하면 충돌이 발생해 오류가 발생할 수 있다.
+      UpdateExpression: 'set me = :me',
 
-//       // 위에서 고른것을 변경한다. 이때 지정해준 이름을 사용해야 한다.
-//       ExpressionAttributeValues: {
-//         ':me': request.me,
-//       },
-//       ReturnValues: 'UPDATED_NEW',
-//     };
+      // 위에서 고른것을 변경한다. 이때 지정해준 이름을 사용해야 한다.
+      ExpressionAttributeValues: {
+        ':me': req.me,
+      },
+      ReturnValues: 'UPDATED_NEW',
+    })
+    .promise();
+    
+    console.log(JSON.stringify(data, null, 2));
+    
+    return {
+      'statusCode': 200,
+      'success': true,
+      'msg': '파일정보 변경 성공',
+      'data': data
+    };
+  } catch (err) {
+    console.log(err);
+    return {
+      'statusCode': 503,
+      'success': false,
+      'msg': '파일정보 변경 실패'
+    };
+  }
+};
 
-//     const data = await docClient.update(params).promise();
-//     console.log(JSON.stringify(data, null, 2));
-//     return data;
-//   } catch (err) {
-//     console.log(err);
-//     throw Error(err);
-//   }
-// };
 
 // delete 관련은 스케쥴러에 의해 발생하므로 여기선 제외
 
