@@ -2,7 +2,7 @@ import express from 'express';
 import {
   showFavorites,
   switchFavorites,
-} from '../controllers/favoritesControllers.js';
+} from '../controllers/favoritesController.js';
 
 const router = express.Router();
 

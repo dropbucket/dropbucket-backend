@@ -25,7 +25,15 @@ export const showFavorites2 = async (req) => {
 
     const data = await docClient.scan(params).promise();
     console.log(JSON.stringify(data, null, 2));
-    return data;
+
+    const resMessage = {
+      statusCode: 200,
+      success: true,
+      data: data,
+      msg: '즐겨찾기 조회 완료',
+    };
+
+    return resMessage;
   } catch (err) {
     console.log(err);
     throw Error(err);
@@ -53,6 +61,8 @@ export const switchFavorites2 = async (req) => {
     };
 
     let data = await docClient.get(params).promise();
+
+    //console.log(JSON.stringify(data, null, 2));
     let is_starred = data.Item.is_starred;
     params = {
       TableName: 'FileDirTable',
@@ -72,7 +82,6 @@ export const switchFavorites2 = async (req) => {
     const resMessage = {
       statusCode: 200,
       success: true,
-      is_starred: data.Attributes.is_starred,
       msg: '즐겨찾기 설정/해제 완료',
     };
 
