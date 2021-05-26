@@ -213,17 +213,22 @@ export const updateFolder2 = async (req) => {
 
 export const moveFolder2 = async (req) => {
   console.log('connect');
-  if (req.file_owner === '') {
-    return { statusCode: 400, success: false, msg: '로그인을 해주세요' };
+  // 현재 시크릿 키가 없어 사용 불가.
+  /* const im = await me(req);
+  if (im.statusCode === 401 || im.statusCode === 500) {
+    return im;
   }
-  if (req.content_type !== null) {
+  const file_owner = im.userId;
+  */
+  const file_owner = 'aljenfalkjwefnlakjwef';
+  if (req.body.content_type !== null) {
     return {
       statusCode: 400,
       success: false,
-      msg: '경로가 잘못되었습니다. 폴더위치를 수정하는 곳입니다.',
+      msg: '경로가 잘못되었습니다. 폴더를 생성하는 곳입니다.',
     };
   }
-  if (req.id === req.parent_id) {
+  if (file_owner === req.body.parent_id) {
     return {
       statusCode: 400,
       success: false,
@@ -235,21 +240,20 @@ export const moveFolder2 = async (req) => {
     AWS.config.update(awsConfig);
     const docClient = new AWS.DynamoDB.DocumentClient();
 
-    const parentOwnerParam = {
+    const OwnerParam = {
       TableName: 'FileDirTable',
       Key: {
-        parent_id: req.parent_id,
-        id: req.id,
+        file_owner: file_owner,
+        id: req.body.id,
       },
     };
 
-    const owner = (await docClient.get(parentOwnerParam).promise()).Item;
-
+    const moveF = (await docClient.get(OwnerParam).promise()).Item;
     // 폴더이름
-    const folderName = owner.filename;
+    const folderName = moveF.filename;
 
     // 폴더 주인 확인
-    if (req.file_owner !== owner.file_owner) {
+    if (file_owner !== moveF.file_owner) {
       return {
         statusCode: 400,
         success: false,
@@ -257,26 +261,25 @@ export const moveFolder2 = async (req) => {
       };
     }
 
-    // 중복이름을 확인하기위해 location에 있는 것들을 가져온다.
-    const rootValidParam = {
+    const overlapParam = {
       TableName: 'FileDirTable',
-      KeyConditionExpression:
-        '#parent_id=:location_parent_id and #id = :location_id',
+      KeyConditionExpression: '#file_owner = :file_owner',
       ExpressionAttributeNames: {
-        '#parent_id': 'parent_id',
-        '#id': 'id',
+        '#file_owner': 'file_owner',
       },
       ExpressionAttributeValues: {
-        ':location_parent_id': req.location_parent_id,
-        ':location_id': req.location_id,
+        ':file_owner': file_owner,
       },
     };
 
-    const folders = (await docClient.query(rootValidParam).promise()).Items;
-    console.log(folders);
+    const folders = (await docClient.query(overlapParam).promise()).Items;
+
     // 파일명 중복 체크
     for (let i = 0; i < folders.length; i++) {
-      if (folderName === folders[i].filename) {
+      if (
+        folderName === folders[i].filename &&
+        folders[i].parent_id === req.body.location_id
+      ) {
         return {
           statusCode: 400,
           success: false,
@@ -284,27 +287,59 @@ export const moveFolder2 = async (req) => {
         };
       }
     }
+    /*
+    let before_parent_size = 0;
+    for (let i = 0; i < folders.length; i++) {
+      if (folders[i].id === moveF.parent_id) {
+        before_parent_size = folders[i].size;
+      }
+    }
 
-    const change = {
+    const beforeParentFolderSizeChange = {
       TableName: 'FileDirTable',
       Key: {
-        id: req.id,
-        parent_id: req.parent_id,
+        id: moveF.parent_id,
+        file_owner: file_owner,
       },
-      UpdateExpression: 'SET #parent_id = :location',
+      UpdateExpression: 'SET #size = :size',
       ExpressionAttributeNames: {
-        '#parent_id': 'parent_id',
+        '#size': 'size',
       },
       // 위에서 고른것을 변경한다. 이때 지정해준 이름을 사용해야 한다.
       ExpressionAttributeValues: {
-        ':location': req.location_id,
+        ':size': before_parent_size - moveF.size,
       },
       ReturnValues: 'UPDATED_NEW',
     };
 
-    const params = {
+    const size_change = docClient
+      .update(beforeParentFolderSizeChange)
+      .promise();
+
+    let location_parent_size = 0;
+    for (let i = 0; i < folders.length; i++) {
+      if (folders[i].id === req.body.parent_id) {
+        location_parent_size = folders[i].size;
+      }
+    }
+  */
+    const change = {
       TableName: 'FileDirTable',
-      Item: change,
+      Key: {
+        id: req.body.id,
+        file_owner: file_owner,
+      },
+      UpdateExpression: 'SET #parent_id = :location',
+      ExpressionAttributeNames: {
+        '#parent_id': 'parent_id',
+        //'#size': 'size',
+      },
+      // 위에서 고른것을 변경한다. 이때 지정해준 이름을 사용해야 한다.
+      ExpressionAttributeValues: {
+        ':location': req.body.location_id,
+        //'#size': location_parent_size + moveF.size,
+      },
+      ReturnValues: 'UPDATED_NEW',
     };
 
     const data = docClient.update(change).promise();
@@ -481,3 +516,5 @@ export const createFolder2 = async (req) => {
     throw Error(err);
   }
 };
+
+export const deleteFolder2 = async (req) => {};
