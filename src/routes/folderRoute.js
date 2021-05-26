@@ -3,6 +3,7 @@ import {
   moveFolder,
   createFolder,
   updateFolder,
+  deleteFolder,
 } from '../controllers/folderController.js';
 
 const router = express.Router();

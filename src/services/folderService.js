@@ -40,21 +40,6 @@ export const updateFolder2 = async (req) => {
   */
 
   const file_owner = 'aljenfalkjwefnlakjwef';
-  if (req.body.content_type !== null) {
-    return {
-      statusCode: 400,
-      success: false,
-      msg: '경로가 잘못되었습니다. 폴더를 생성하는 곳입니다.',
-    };
-  }
-
-  if (req.body.parent_id === file_owner) {
-    return {
-      statusCode: 400,
-      success: false,
-      msg: '루트폴더는 이름과 설명을 변경할 수 없습니다.',
-    };
-  }
 
   try {
     AWS.config.update(awsConfig);
@@ -70,8 +55,16 @@ export const updateFolder2 = async (req) => {
 
     const owner = (await docClient.get(parentOwnerParam).promise()).Item;
 
-    // 폴더 주인 확인
-    if (file_owner !== owner.file_owner) {
+    if (owner.parent_id === file_owner) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '루트폴더는 이름과 설명을 변경할 수 없습니다.',
+      };
+    }
+
+    // 폴더 주인 및 폴더인지 확인
+    if (file_owner !== owner.file_owner && owner.is_folder !== true) {
       return {
         statusCode: 400,
         success: false,
@@ -94,11 +87,12 @@ export const updateFolder2 = async (req) => {
       };
       const folders = (await docClient.query(rootValidParam).promise()).Items;
 
-      // 파일명 중복 체크
+      // 폴더명 중복 체크 , 폴더끼리만 체크
       for (let i = 0; i < folders.length; i++) {
         if (
           folders[i].filename === req.body.change_foldername &&
-          folders[i].parent_id === req.body.parent_id
+          folders[i].parent_id === owner.parent_id &&
+          folders[i].is_folder
         ) {
           return {
             statusCode: 400,
@@ -164,7 +158,8 @@ export const updateFolder2 = async (req) => {
       for (let i = 0; i < folders.length; i++) {
         if (
           folders[i].filename === req.body.change_foldername &&
-          folders[i].parent_id === req.body.parent_id
+          folders[i].parent_id === owner.parent_id &&
+          folders[i].is_folder
         ) {
           return {
             statusCode: 400,
@@ -221,20 +216,6 @@ export const moveFolder2 = async (req) => {
   const file_owner = im.userId;
   */
   const file_owner = 'aljenfalkjwefnlakjwef';
-  if (req.body.content_type !== null) {
-    return {
-      statusCode: 400,
-      success: false,
-      msg: '경로가 잘못되었습니다. 폴더를 생성하는 곳입니다.',
-    };
-  }
-  if (file_owner === req.body.parent_id) {
-    return {
-      statusCode: 400,
-      success: false,
-      msg: '루트폴더의 경로는 변경할 수 없습니다.',
-    };
-  }
 
   try {
     AWS.config.update(awsConfig);
@@ -249,15 +230,24 @@ export const moveFolder2 = async (req) => {
     };
 
     const moveF = (await docClient.get(OwnerParam).promise()).Item;
-    // 폴더이름
-    const folderName = moveF.filename;
 
-    // 폴더 주인 확인
-    if (file_owner !== moveF.file_owner) {
+    if (file_owner === moveF.parent_id) {
       return {
         statusCode: 400,
         success: false,
-        msg: '폴더위치를 변경할 권한이 없습니다.',
+        msg: '루트폴더의 경로는 변경할 수 없습니다.',
+      };
+    }
+
+    // 폴더이름
+    const folderName = moveF.filename;
+
+    // 폴더 주인 및 폴더인지 확인
+    if (file_owner !== owner.file_owner && owner.is_folder !== true) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '변경 권한이 없습니다.',
       };
     }
 
@@ -278,7 +268,8 @@ export const moveFolder2 = async (req) => {
     for (let i = 0; i < folders.length; i++) {
       if (
         folderName === folders[i].filename &&
-        folders[i].parent_id === req.body.location_id
+        folders[i].parent_id === req.body.location_id &&
+        folders[i].is_folder
       ) {
         return {
           statusCode: 400,
@@ -367,13 +358,7 @@ export const createFolder2 = async (req) => {
   const file_owner = im.userId;
   */
   const file_owner = 'aljenfalkjwefnlakjwef';
-  if (req.body.content_type !== null) {
-    return {
-      statusCode: 400,
-      success: false,
-      msg: '경로가 잘못되었습니다. 폴더를 생성하는 곳입니다.',
-    };
-  }
+
   try {
     AWS.config.update(awsConfig);
     let input = {};
@@ -412,7 +397,7 @@ export const createFolder2 = async (req) => {
         is_deleted: false,
         is_shared: false,
         is_starred: false,
-        is_folder: false,
+        is_folder: true,
         created_at: Date.now(),
         deleted_at: null,
         last_modified_at: Date.now(),
@@ -453,7 +438,10 @@ export const createFolder2 = async (req) => {
       }
 
       // 폴더 주인 확인
-      if (folders[parentFolder].file_owner !== file_owner) {
+      if (
+        folders[parentFolder].file_owner !== file_owner &&
+        folders[parentFolder].is_folder !== true
+      ) {
         return {
           statusCode: 400,
           success: false,
@@ -465,7 +453,8 @@ export const createFolder2 = async (req) => {
       for (let i = 0; i < folders.length; i++) {
         if (
           folders[i].filename === req.body.filename &&
-          folders[i].parent_id === req.body.parent_id
+          folders[i].parent_id === req.body.parent_id &&
+          folders[i].is_folder
         )
           return {
             statusCode: 400,
@@ -486,7 +475,7 @@ export const createFolder2 = async (req) => {
         is_deleted: false,
         is_shared: false,
         is_starred: false,
-        is_folder: false,
+        is_folder: true,
         created_at: Date.now(),
         deleted_at: null,
         last_modified_at: Date.now(),
@@ -517,4 +506,118 @@ export const createFolder2 = async (req) => {
   }
 };
 
-export const deleteFolder2 = async (req) => {};
+export const deleteFolder2 = async (req) => {
+  console.log('connect');
+  // 현재 시크릿 키가 없어 사용 불가.
+  /* const im = await me(req);
+  if (im.statusCode === 401 || im.statusCode === 500) {
+    return im;
+  }
+  const file_owner = im.userId;
+  */
+  const file_owner = 'aljenfalkjwefnlakjwef';
+
+  try {
+    AWS.config.update(awsConfig);
+    const docClient = new AWS.DynamoDB.DocumentClient();
+
+    const OwnerParam = {
+      TableName: 'FileDirTable',
+      Key: {
+        file_owner: file_owner,
+        id: req.body.id,
+      },
+    };
+
+    const deleteF = (await docClient.get(OwnerParam).promise()).Item;
+
+    if (file_owner === deleteF.parent_id) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '루트폴더는 삭제할 수 없습니다.',
+      };
+    }
+
+    // 폴더이름
+    const folderName = deleteF.filename;
+
+    // 폴더 주인 확인
+    if (file_owner !== deleteF.file_owner && deleteF.is_folder !== true) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '폴더를 삭제할 권한이 없습니다.',
+      };
+    }
+
+    if (deleteF.is_deleted) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '이미 삭제된 폴더 입니다.',
+      };
+    }
+
+    const overlapParam = {
+      TableName: 'FileDirTable',
+      KeyConditionExpression: '#file_owner = :file_owner',
+      ExpressionAttributeNames: {
+        '#file_owner': 'file_owner',
+      },
+      ExpressionAttributeValues: {
+        ':file_owner': file_owner,
+      },
+    };
+
+    const folders = (await docClient.query(overlapParam).promise()).Items;
+
+    // 파일명 중복 체크
+    for (let i = 0; i < folders.length; i++) {
+      if (
+        folders[i].is_deleted &&
+        folders[i].is_folder &&
+        folderName === folders[i].filename
+      ) {
+        return {
+          statusCode: 400,
+          success: false,
+          msg: '휴지통에 이미 동일한 폴더가 존재합니다.',
+        };
+      }
+    }
+    const change = {
+      TableName: 'FileDirTable',
+      Key: {
+        id: req.body.id,
+        file_owner: file_owner,
+      },
+      UpdateExpression:
+        'SET #is_deleted = :is_deleted, #deleted_at = :deleted_at',
+      ExpressionAttributeNames: {
+        '#is_deleted': 'is_deleted',
+        '#deleted_at': 'deleted_at',
+        //'#size': 'size',
+      },
+      // 위에서 고른것을 변경한다. 이때 지정해준 이름을 사용해야 한다.
+      ExpressionAttributeValues: {
+        ':is_deleted': true,
+        ':deleted_at': Date.now(),
+        //'#size': location_parent_size + moveF.size,
+      },
+      ReturnValues: 'UPDATED_NEW',
+    };
+
+    const data = docClient.update(change).promise();
+
+    const resMessage = {
+      statusCode: 200,
+      success: true,
+      msg: '폴더 삭제 완료',
+    };
+    return resMessage;
+  } catch (err) {
+    console.log(err);
+    throw Error(err);
+  }
+};
