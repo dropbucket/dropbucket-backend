@@ -1,9 +1,4 @@
-import {
-  uploadFile2,
-  downloadFile2,
-  findFile2,
-  updateFile2,
-} from '../services/fileService.js';
+import { uploadFile2, downloadFile2, findFile2, updateFile2 } from '../services/fileService.js';
 
 export const uploadFile = async (req, res, next) => {
   try {

@@ -1,19 +1,20 @@
 import express from 'express';
 import {
-  findItem,
-  updateItem,
-  createFolder,
-  updateFolder,
-  moveFolder,
-} from '../controllers/filesController.js';
+  uploadFile,
+  downloadFile,
+  findFile,
+  updateFile,
+} from '../controllers/fileController.js';
+import { uploadS3 } from '../services/fileService.js';
 
 const router = express.Router();
+const uploadToS3 = await uploadS3();
 
-router.get('/item', findItem); // 폴더 & 파일 조회
-router.patch('/item', updateItem); // 폴더 & 파일 수정
+// file 관련 router
+router.post('/', uploadToS3.single('img'), uploadFile); // 파일 업로드
+router.get('/download', downloadFile); // 파일 다운로드
+router.get('/', findFile); // 현 폴더 내의 파일들 정보 조회
+router.patch('/', updateFile); // 파일 수정
+// router.delete('/', deleteFile);     // 파일 삭제인데 안쓸 예정
 
-// 김태영 - 폴더 생성 / 삭제 / 이름수정
-router.post('/folder', createFolder); // 폴더 생성
-router.patch('/folder', updateFolder); // 폴더 수정
-router.patch('/folder/move', moveFolder);
 export default router;
