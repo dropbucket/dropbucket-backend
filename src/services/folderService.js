@@ -30,21 +30,29 @@ const me = async function (req) {
 
 export const updateFolder2 = async (req) => {
   console.log('connect');
-  if (req.file_owner === '') {
-    return { statusCode: 400, success: false, msg: '로그인을 해주세요' };
+
+  // 현재 시크릿 키가 없어 사용 불가.
+  /* const im = await me(req);
+  if (im.statusCode === 401 || im.statusCode === 500) {
+    return im;
   }
-  if (req.content_type !== null) {
+  const file_owner = im.userId;
+  */
+
+  const file_owner = 'aljenfalkjwefnlakjwef';
+  if (req.body.content_type !== null) {
     return {
       statusCode: 400,
       success: false,
-      msg: '경로가 잘못되었습니다. 폴더명과 설명을 수정하는 곳입니다.',
+      msg: '경로가 잘못되었습니다. 폴더를 생성하는 곳입니다.',
     };
   }
-  if (req.id === req.parent_id) {
+
+  if (req.body.parent_id === file_owner) {
     return {
       statusCode: 400,
       success: false,
-      msg: '루트폴더의 이름은 변경할 수 없습니다.',
+      msg: '루트폴더는 이름과 설명을 변경할 수 없습니다.',
     };
   }
 
@@ -55,75 +63,141 @@ export const updateFolder2 = async (req) => {
     const parentOwnerParam = {
       TableName: 'FileDirTable',
       Key: {
-        parent_id: req.parent_id,
-        id: req.id,
+        file_owner: file_owner,
+        id: req.body.id,
       },
     };
 
     const owner = (await docClient.get(parentOwnerParam).promise()).Item;
 
     // 폴더 주인 확인
-    if (req.file_owner !== owner.file_owner) {
+    if (file_owner !== owner.file_owner) {
       return {
         statusCode: 400,
         success: false,
-        msg: '폴더명과 설명을 변경할 권한이 없습니다.',
+        msg: '변경 권한이 없습니다.',
       };
     }
 
-    // 중복이름을 확인하기위해 부모폴더에 있는 것들을 가져온다.
-    const rootValidParam = {
-      TableName: 'FileDirTable',
-      KeyConditionExpression: '#parent_id = :parent_id',
-      ExpressionAttributeNames: {
-        '#parent_id': 'parent_id',
-      },
-      ExpressionAttributeValues: {
-        ':parent_id': req.parent_id,
-      },
-    };
+    let change;
+    if (req.body.change_description === undefined) {
+      // 중복이름을 확인하기위해 user가 가지고있는 것들을 가져온다.
+      const rootValidParam = {
+        TableName: 'FileDirTable',
+        KeyConditionExpression: '#file_owner = :file_owner',
+        ExpressionAttributeNames: {
+          '#file_owner': 'file_owner',
+        },
+        ExpressionAttributeValues: {
+          ':file_owner': file_owner,
+        },
+      };
+      const folders = (await docClient.query(rootValidParam).promise()).Items;
 
-    const folders = (await docClient.query(rootValidParam).promise()).Items;
-    console.log(folders);
-    // 파일명 중복 체크
-    for (let i = 0; i < folders.length; i++) {
-      if (req.change_foldername === folders[i].filename) {
-        return {
-          statusCode: 400,
-          success: false,
-          msg: '폴더 이름이 중복됩니다.',
-        };
+      // 파일명 중복 체크
+      for (let i = 0; i < folders.length; i++) {
+        if (
+          folders[i].filename === req.body.change_foldername &&
+          folders[i].parent_id === req.body.parent_id
+        ) {
+          return {
+            statusCode: 400,
+            success: false,
+            msg: '폴더 이름이 중복됩니다.',
+          };
+        }
       }
+      change = {
+        TableName: 'FileDirTable',
+        Key: {
+          id: req.body.id,
+          file_owner: file_owner,
+        },
+        UpdateExpression:
+          'SET #filename = :filename, #last_modified_at = :last_modified_at',
+        ExpressionAttributeNames: {
+          '#filename': 'filename',
+          '#last_modified_at': 'last_modified_at',
+        },
+        // 위에서 고른것을 변경한다. 이때 지정해준 이름을 사용해야 한다.
+        ExpressionAttributeValues: {
+          ':filename': req.body.change_foldername,
+          ':last_modified_at': Date.now(),
+        },
+        ReturnValues: 'UPDATED_NEW',
+      };
+    } else if (req.body.change_foldername === undefined) {
+      change = {
+        TableName: 'FileDirTable',
+        Key: {
+          id: req.body.id,
+          file_owner: file_owner,
+        },
+        UpdateExpression:
+          'SET #description = :description, #last_modified_at = :last_modified_at',
+        ExpressionAttributeNames: {
+          '#description': 'description',
+          '#last_modified_at': 'last_modified_at',
+        },
+        // 위에서 고른것을 변경한다. 이때 지정해준 이름을 사용해야 한다.
+        ExpressionAttributeValues: {
+          ':description': req.body.change_description,
+          ':last_modified_at': Date.now(),
+        },
+        ReturnValues: 'UPDATED_NEW',
+      };
+    } else {
+      // 중복이름을 확인하기위해 user가 가지고있는 것들을 가져온다.
+      const rootValidParam = {
+        TableName: 'FileDirTable',
+        KeyConditionExpression: '#file_owner = :file_owner',
+        ExpressionAttributeNames: {
+          '#file_owner': 'file_owner',
+        },
+        ExpressionAttributeValues: {
+          ':file_owner': file_owner,
+        },
+      };
+      const folders = (await docClient.query(rootValidParam).promise()).Items;
+
+      // 파일명 중복 체크
+      for (let i = 0; i < folders.length; i++) {
+        if (
+          folders[i].filename === req.body.change_foldername &&
+          folders[i].parent_id === req.body.parent_id
+        ) {
+          return {
+            statusCode: 400,
+            success: false,
+            msg: '폴더 이름이 중복됩니다.',
+          };
+        }
+      }
+      change = {
+        TableName: 'FileDirTable',
+        Key: {
+          id: req.body.id,
+          file_owner: file_owner,
+        },
+        UpdateExpression:
+          'SET #filename = :filename, #description = :description, #last_modified_at = :last_modified_at',
+        ExpressionAttributeNames: {
+          '#description': 'description',
+          '#filename': 'filename',
+          '#last_modified_at': 'last_modified_at',
+        },
+        // 위에서 고른것을 변경한다. 이때 지정해준 이름을 사용해야 한다.
+        ExpressionAttributeValues: {
+          ':description': req.body.change_description,
+          ':filename': req.body.change_foldername,
+          ':last_modified_at': Date.now(),
+        },
+        ReturnValues: 'UPDATED_NEW',
+      };
     }
 
-    const change = {
-      TableName: 'FileDirTable',
-      Key: {
-        id: req.id,
-        parent_id: req.parent_id,
-      },
-      UpdateExpression:
-        'SET #filename = :filename, #description = :description, #last_modified_at = :last_modified_at',
-      ExpressionAttributeNames: {
-        '#description': 'description',
-        '#filename': 'filename',
-        '#last_modified_at': 'last_modified_at',
-      },
-      // 위에서 고른것을 변경한다. 이때 지정해준 이름을 사용해야 한다.
-      ExpressionAttributeValues: {
-        ':description': req.change_description,
-        ':filename': req.change_foldername,
-        ':last_modified_at': Date.now(),
-      },
-      ReturnValues: 'UPDATED_NEW',
-    };
-
-    const params = {
-      TableName: 'FileDirTable',
-      Item: change,
-    };
-
     const data = docClient.update(change).promise();
+    console.log(JSON.stringify(data, null, 2));
 
     const resMessage = {
       statusCode: 200,
@@ -356,7 +430,7 @@ export const createFolder2 = async (req) => {
       for (let i = 0; i < folders.length; i++) {
         if (
           folders[i].filename === req.body.filename &&
-          folders[i].parent_id === folders[parentFolder].id
+          folders[i].parent_id === req.body.parent_id
         )
           return {
             statusCode: 400,
