@@ -120,6 +120,117 @@ export const updateFolder2 = async (req) => {
   }
 };
 
+export const moveFolder2 = async (req) => {
+  console.log('connect');
+  if (req.file_owner === '') {
+    return { statusCode: 400, success: false, msg: '로그인을 해주세요' };
+  }
+  if (req.content_type !== null) {
+    return {
+      statusCode: 400,
+      success: false,
+      msg: '경로가 잘못되었습니다. 폴더위치를 수정하는 곳입니다.',
+    };
+  }
+  if (req.id === req.parent_id) {
+    return {
+      statusCode: 400,
+      success: false,
+      msg: '루트폴더의 경로는 변경할 수 없습니다.',
+    };
+  }
+
+  try {
+    AWS.config.update(awsConfig);
+    const docClient = new AWS.DynamoDB.DocumentClient();
+
+    const parentOwnerParam = {
+      TableName: 'FileDirTable',
+      Key: {
+        parent_id: req.parent_id,
+        id: req.id,
+      },
+    };
+
+    const owner = (await docClient.get(parentOwnerParam).promise()).Item;
+
+    // 폴더이름
+    const folderName = owner.filename;
+
+    // 폴더 주인 확인
+    if (req.file_owner !== owner.file_owner) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '폴더위치를 변경할 권한이 없습니다.',
+      };
+    }
+
+    // 중복이름을 확인하기위해 location에 있는 것들을 가져온다.
+    const rootValidParam = {
+      TableName: 'FileDirTable',
+      KeyConditionExpression:
+        '#parent_id=:location_parent_id and #id = :location_id',
+      ExpressionAttributeNames: {
+        '#parent_id': 'parent_id',
+        '#id': 'id',
+      },
+      ExpressionAttributeValues: {
+        ':location_parent_id': req.location_parent_id,
+        ':location_id': req.location_id,
+      },
+    };
+
+    const folders = (await docClient.query(rootValidParam).promise()).Items;
+    console.log(folders);
+    // 파일명 중복 체크
+    for (let i = 0; i < folders.length; i++) {
+      if (folderName === folders[i].filename) {
+        return {
+          statusCode: 400,
+          success: false,
+          msg: '폴더 이름이 중복됩니다.',
+        };
+      }
+    }
+
+    const change = {
+      TableName: 'FileDirTable',
+      Key: {
+        id: req.id,
+        parent_id: req.parent_id,
+      },
+      UpdateExpression: 'SET #parent_id = :location',
+      ExpressionAttributeNames: {
+        '#parent_id': 'parent_id',
+      },
+      // 위에서 고른것을 변경한다. 이때 지정해준 이름을 사용해야 한다.
+      ExpressionAttributeValues: {
+        ':location': req.location_id,
+      },
+      ReturnValues: 'UPDATED_NEW',
+    };
+
+    const params = {
+      TableName: 'FileDirTable',
+      Item: change,
+    };
+
+    const data = docClient.update(change).promise();
+
+    const resMessage = {
+      statusCode: 200,
+      success: true,
+      msg: '폴더 위치 수정 완료',
+      location: req.location_id,
+    };
+    return resMessage;
+  } catch (err) {
+    console.log(err);
+    throw Error(err);
+  }
+};
+
 export const createFolder2 = async (req) => {
   console.log('connect');
   if (req.file_owner === '') {
