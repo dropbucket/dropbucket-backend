@@ -4,6 +4,7 @@ import {
   createFolder,
   updateFolder,
   deleteFolder,
+  restoreFolder,
 } from '../controllers/folderController.js';
 
 const router = express.Router();
@@ -13,4 +14,5 @@ router.post('/', createFolder); // 폴더 생성
 router.patch('/', updateFolder); // 폴더 이름 수정
 router.patch('/move', moveFolder); // 폴더 이동
 router.delete('/', deleteFolder);
+router.patch('/trash', restoreFolder);
 export default router;

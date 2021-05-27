@@ -621,3 +621,179 @@ export const deleteFolder2 = async (req) => {
     throw Error(err);
   }
 };
+
+export const restoreFolder2 = async (req) => {
+  console.log('connect');
+  // 현재 시크릿 키가 없어 사용 불가.
+  /* const im = await me(req);
+  if (im.statusCode === 401 || im.statusCode === 500) {
+    return im;
+  }
+  const file_owner = im.userId;
+  */
+  const file_owner = 'aljenfalkjwefnlakjwef';
+
+  try {
+    AWS.config.update(awsConfig);
+    const docClient = new AWS.DynamoDB.DocumentClient();
+
+    const OwnerParam = {
+      TableName: 'FileDirTable',
+      Key: {
+        file_owner: file_owner,
+        id: req.body.id,
+      },
+    };
+
+    const deleteF = (await docClient.get(OwnerParam).promise()).Item;
+
+    // 폴더이름
+    const folderName = deleteF.filename;
+
+    // 폴더 주인 확인
+    if (file_owner !== deleteF.file_owner && deleteF.is_folder !== true) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '폴더를 복구할 권한이 없습니다.',
+      };
+    }
+
+    if (deleteF.is_deleted === false) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '삭제되지 않은 폴더입니다.',
+      };
+    }
+
+    const overlapParam = {
+      TableName: 'FileDirTable',
+      KeyConditionExpression: '#file_owner = :file_owner',
+      ExpressionAttributeNames: {
+        '#file_owner': 'file_owner',
+      },
+      ExpressionAttributeValues: {
+        ':file_owner': file_owner,
+      },
+    };
+
+    const folders = (await docClient.query(overlapParam).promise()).Items;
+
+    // 상위 폴더가 is_deleted 상태인지 확인. 상위폴더가 삭제상태이면
+    // 해당 폴더를 parent_id를 루트폴더로해서 복구한다.
+    let up_foloder_idx = -1;
+    for (let i = 0; i < folders.length; i++) {
+      if (folders[i].id === deleteF.parent_id) {
+        up_foloder_idx = i;
+        break;
+      }
+    }
+
+    let change;
+
+    // 상위폴더가 삭제되어있는 경우
+    if (folders[up_foloder_idx].is_deleted === true) {
+      let root_idx;
+      for (let i = 0; i < folders.length; i++) {
+        if (folders[i].parent_id === file_owner) {
+          root_idx = i;
+          break;
+        }
+      }
+
+      // 파일명 중복 체크
+      // 삭제되지 않았어야 하고
+      // 폴더여야하고, 부모아이디와 루트 소속인데
+      // 폴더명이 같다? 그러면 중복
+      for (let i = 0; i < folders.length; i++) {
+        if (
+          folders[i].is_deleted !== true &&
+          folders[i].is_folder &&
+          folders[i].parent_id === folders[root_idx].id &&
+          folderName === folders[i].filename
+        ) {
+          return {
+            statusCode: 400,
+            success: false,
+            msg: '복구하려는 곳에 이미 동일한 폴더가 존재합니다.',
+          };
+        }
+      }
+
+      change = {
+        TableName: 'FileDirTable',
+        Key: {
+          id: req.body.id,
+          file_owner: file_owner,
+        },
+        UpdateExpression:
+          'SET #parent_id = :parent_id, #is_deleted = :is_deleted, #deleted_at = :deleted_at',
+        ExpressionAttributeNames: {
+          '#parent_id': 'parent_id',
+          '#is_deleted': 'is_deleted',
+          '#deleted_at': 'deleted_at',
+          //'#size': 'size',
+        },
+        // 위에서 고른것을 변경한다. 이때 지정해준 이름을 사용해야 한다.
+        ExpressionAttributeValues: {
+          ':is_deleted': false,
+          ':parent_id': folders[root_idx].id,
+          ':deleted_at': null,
+          //'#size': location_parent_size + moveF.size,
+        },
+        ReturnValues: 'UPDATED_NEW',
+      };
+    } else {
+      // 폴더 이름 중복 체크
+      for (let i = 0; i < folders.length; i++) {
+        if (
+          folders[i].is_deleted !== true &&
+          folders[i].is_folder &&
+          folders[i].parent_id === deleteF.parent_id &&
+          folderName === folders[i].filename
+        ) {
+          return {
+            statusCode: 400,
+            success: false,
+            msg: '복구하려는 곳에 이미 동일한 폴더가 존재합니다.',
+          };
+        }
+      }
+
+      change = {
+        TableName: 'FileDirTable',
+        Key: {
+          id: req.body.id,
+          file_owner: file_owner,
+        },
+        UpdateExpression:
+          'SET #is_deleted = :is_deleted, #deleted_at = :deleted_at',
+        ExpressionAttributeNames: {
+          '#is_deleted': 'is_deleted',
+          '#deleted_at': 'deleted_at',
+          //'#size': 'size',
+        },
+        // 위에서 고른것을 변경한다. 이때 지정해준 이름을 사용해야 한다.
+        ExpressionAttributeValues: {
+          ':is_deleted': false,
+          ':deleted_at': null,
+          //'#size': location_parent_size + moveF.size,
+        },
+        ReturnValues: 'UPDATED_NEW',
+      };
+    }
+
+    const data = docClient.update(change).promise();
+
+    const resMessage = {
+      statusCode: 200,
+      success: true,
+      msg: '폴더 복구 완료',
+    };
+    return resMessage;
+  } catch (err) {
+    console.log(err);
+    throw Error(err);
+  }
+};
