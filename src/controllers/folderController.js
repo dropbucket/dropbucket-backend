@@ -4,6 +4,7 @@ import {
   moveFolder2,
   deleteFolder2,
   restoreFolder2,
+  getTrash2,
 } from '../services/folderService.js';
 
 export const createFolder = async (req, res, next) => {
@@ -45,6 +46,15 @@ export const deleteFolder = async (req, res, next) => {
 export const restoreFolder = async (req, res, next) => {
   try {
     let rows = await restoreFolder2(req);
+    return res.json(rows);
+  } catch (err) {
+    return res.status(500).json(err);
+  }
+};
+
+export const getTrash = async (req, res, next) => {
+  try {
+    let rows = await getTrash2(req);
     return res.json(rows);
   } catch (err) {
     return res.status(500).json(err);
