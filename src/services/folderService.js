@@ -1,7 +1,7 @@
 import AWS from 'aws-sdk';
 import dotenv from 'dotenv';
 import uuid from 'uuid';
-import jwt from 'express-jwt';
+import { me } from '../utils/decode.js';
 dotenv.config();
 
 const awsConfig = {
@@ -12,34 +12,12 @@ const awsConfig = {
   sessionToken: process.env.DYNAMODB_SESSION_TOKEN,
 };
 
-const me = async function (req) {
-  if (req.headers && req.headers.authorization) {
-    let authorization = req.headers.authorization.split(' ')[1],
-      decoded;
-    try {
-      decoded = jwt.verify(authorization, secret.secretToken);
-    } catch (e) {
-      return { statusCode: 401, msg: 'unauthorized' };
-    }
-    let userId = decoded.user_id;
-    // Fetch the user by id
-    return { statusCode: 200, userId: userId };
-  }
-  return { statusCode: 500, mas: 'Header error' };
-};
-
 export const updateFolder2 = async (req) => {
-  console.log('connect');
-
-  // 현재 시크릿 키가 없어 사용 불가.
-  /* const im = await me(req);
+  const im = await me(req);
   if (im.statusCode === 401 || im.statusCode === 500) {
     return im;
   }
   const file_owner = im.userId;
-  */
-
-  const file_owner = 'aljenfalkjwefnlakjwef';
 
   try {
     AWS.config.update(awsConfig);
@@ -215,15 +193,11 @@ export const updateFolder2 = async (req) => {
 };
 
 export const moveFolder2 = async (req) => {
-  console.log('connect');
-  // 현재 시크릿 키가 없어 사용 불가.
-  /* const im = await me(req);
+  const im = await me(req);
   if (im.statusCode === 401 || im.statusCode === 500) {
     return im;
   }
   const file_owner = im.userId;
-  */
-  const file_owner = 'aljenfalkjwefnlakjwef';
 
   try {
     AWS.config.update(awsConfig);
@@ -294,43 +268,6 @@ export const moveFolder2 = async (req) => {
         };
       }
     }
-    /*
-    폴더 사이즈는 따로 계산할 필요 없을것같음. 필요없다고 확인하면 그냥 지우기
-    let before_parent_size = 0;
-    for (let i = 0; i < folders.length; i++) {
-      if (folders[i].id === moveF.parent_id) {
-        before_parent_size = folders[i].size;
-      }
-    }
-
-    const beforeParentFolderSizeChange = {
-      TableName: 'FileDirTable',
-      Key: {
-        id: moveF.parent_id,
-        file_owner: file_owner,
-      },
-      UpdateExpression: 'SET #size = :size',
-      ExpressionAttributeNames: {
-        '#size': 'size',
-      },
-      // 위에서 고른것을 변경한다. 이때 지정해준 이름을 사용해야 한다.
-      ExpressionAttributeValues: {
-        ':size': before_parent_size - moveF.size,
-      },
-      ReturnValues: 'UPDATED_NEW',
-    };
-
-    const size_change = docClient
-      .update(beforeParentFolderSizeChange)
-      .promise();
-
-    let location_parent_size = 0;
-    for (let i = 0; i < folders.length; i++) {
-      if (folders[i].id === req.body.parent_id) {
-        location_parent_size = folders[i].size;
-      }
-    }
-  */
     const change = {
       TableName: 'FileDirTable',
       Key: {
@@ -366,15 +303,11 @@ export const moveFolder2 = async (req) => {
 };
 
 export const createFolder2 = async (req) => {
-  console.log('connect');
-  // 현재 시크릿 키가 없어 사용 불가.
-  /* const im = await me(req);
+  const im = await me(req);
   if (im.statusCode === 401 || im.statusCode === 500) {
     return im;
   }
   const file_owner = im.userId;
-  */
-  const file_owner = 'aljenfalkjwefnlakjwef';
 
   try {
     AWS.config.update(awsConfig);
@@ -529,15 +462,11 @@ export const createFolder2 = async (req) => {
 };
 
 export const deleteFolder2 = async (req) => {
-  console.log('connect');
-  // 현재 시크릿 키가 없어 사용 불가.
-  /* const im = await me(req);
+  const im = await me(req);
   if (im.statusCode === 401 || im.statusCode === 500) {
     return im;
   }
   const file_owner = im.userId;
-  */
-  const file_owner = 'aljenfalkjwefnlakjwef';
 
   try {
     AWS.config.update(awsConfig);
@@ -654,15 +583,11 @@ export const deleteFolder2 = async (req) => {
 };
 
 export const restoreFolder2 = async (req) => {
-  console.log('connect');
-  // 현재 시크릿 키가 없어 사용 불가.
-  /* const im = await me(req);
+  const im = await me(req);
   if (im.statusCode === 401 || im.statusCode === 500) {
     return im;
   }
   const file_owner = im.userId;
-  */
-  const file_owner = 'aljenfalkjwefnlakjwef';
 
   try {
     AWS.config.update(awsConfig);
