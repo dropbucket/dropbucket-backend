@@ -420,7 +420,7 @@ export const deleteFile2 = async (req) => {
       return {
         statusCode: 400,
         success: false,
-        msg: '파일을 삭제할 권한이 없습니다.',
+        msg: '권한이 없습니다.',
       };
     }
 
@@ -428,7 +428,7 @@ export const deleteFile2 = async (req) => {
       return {
         statusCode: 400,
         success: false,
-        msg: '파일을 삭제할 권한이 없습니다.',
+        msg: '파일id가 아닌 폴더id가 들어왔습니다.',
       };
     }
 
@@ -463,7 +463,7 @@ export const deleteFile2 = async (req) => {
         return {
           statusCode: 400,
           success: false,
-          msg: '휴지통에 이미 동일한 파일이 존재합니다.',
+          msg: '휴지통에 이미 중복된 이름의 파일이 존재합니다.',
         };
       }
     }
@@ -536,7 +536,7 @@ export const restoreFile2 = async (req) => {
       return {
         statusCode: 400,
         success: false,
-        msg: '파일을 복구할 권한이 없습니다.',
+        msg: '권한이 없습니다.',
       };
     }
 
@@ -545,7 +545,7 @@ export const restoreFile2 = async (req) => {
       return {
         statusCode: 400,
         success: false,
-        msg: '파일을 복구할 권한이 없습니다.',
+        msg: '파일id가 아닌 폴더id가 들어왔습니다.',
       };
     }
 
@@ -606,7 +606,7 @@ export const restoreFile2 = async (req) => {
           return {
             statusCode: 400,
             success: false,
-            msg: '복구하려는 곳에 이미 동일한 이름을 가진 파일이 존재합니다.',
+            msg: '복구하려는 곳에 이미 중복된 이름의 파일이 존재합니다.',
           };
         }
       }
@@ -646,7 +646,7 @@ export const restoreFile2 = async (req) => {
           return {
             statusCode: 400,
             success: false,
-            msg: '복구하려는 곳에 이미 동일한 이름을 가진 파일이 존재합니다.',
+            msg: '복구하려는 곳에 이미 중복된 이름의 파일이 존재합니다.',
           };
         }
       }

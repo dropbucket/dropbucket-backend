@@ -68,7 +68,7 @@ export const updateFolder2 = async (req) => {
       return {
         statusCode: 400,
         success: false,
-        msg: '변경 권한이 없습니다.',
+        msg: '권한이 없습니다.',
       };
     }
 
@@ -76,7 +76,7 @@ export const updateFolder2 = async (req) => {
       return {
         statusCode: 400,
         success: false,
-        msg: '변경 권한이 없습니다.',
+        msg: '폴더id가 아닌 파일id가 들어왔습니다.',
       };
     }
 
@@ -255,7 +255,7 @@ export const moveFolder2 = async (req) => {
       return {
         statusCode: 400,
         success: false,
-        msg: '변경 권한이 없습니다.',
+        msg: '권한이 없습니다.',
       };
     }
 
@@ -263,7 +263,7 @@ export const moveFolder2 = async (req) => {
       return {
         statusCode: 400,
         success: false,
-        msg: '변경 권한이 없습니다.',
+        msg: '폴더id가 아닌 파일id가 들어왔습니다.',
       };
     }
 
@@ -459,7 +459,7 @@ export const createFolder2 = async (req) => {
         return {
           statusCode: 400,
           success: false,
-          msg: '폴더를 생성할 권한이 없습니다.',
+          msg: '권한이 없습니다.',
         };
       }
 
@@ -468,7 +468,7 @@ export const createFolder2 = async (req) => {
         return {
           statusCode: 400,
           success: false,
-          msg: '폴더를 생성할 권한이 없습니다.',
+          msg: '폴더가 아닌곳에 폴더를 생성할 수 없습니다.',
         };
       }
       // 파일명 중복 체크
@@ -569,7 +569,7 @@ export const deleteFolder2 = async (req) => {
       return {
         statusCode: 400,
         success: false,
-        msg: '폴더를 삭제할 권한이 없습니다.',
+        msg: '권한이 없습니다.',
       };
     }
 
@@ -578,7 +578,7 @@ export const deleteFolder2 = async (req) => {
       return {
         statusCode: 400,
         success: false,
-        msg: '폴더를 삭제할 권한이 없습니다.',
+        msg: '폴더id가 아닌 파일id가 들어왔습니다.',
       };
     }
 
@@ -613,7 +613,7 @@ export const deleteFolder2 = async (req) => {
         return {
           statusCode: 400,
           success: false,
-          msg: '휴지통에 이미 동일한 폴더가 존재합니다.',
+          msg: '휴지통에 이미 중복된 이름의 폴더가 존재합니다.',
         };
       }
     }
@@ -686,7 +686,7 @@ export const restoreFolder2 = async (req) => {
       return {
         statusCode: 400,
         success: false,
-        msg: '폴더를 복구할 권한이 없습니다.',
+        msg: '권한이 없습니다.',
       };
     }
 
@@ -695,7 +695,7 @@ export const restoreFolder2 = async (req) => {
       return {
         statusCode: 400,
         success: false,
-        msg: '폴더를 복구할 권한이 없습니다.',
+        msg: '폴더id가 아닌 파일id가 들어왔습니다.',
       };
     }
 
@@ -756,7 +756,7 @@ export const restoreFolder2 = async (req) => {
           return {
             statusCode: 400,
             success: false,
-            msg: '복구하려는 곳에 이미 동일한 폴더가 존재합니다.',
+            msg: '복구하려는 곳에 이미 중복된 이름의 폴더가 존재합니다.',
           };
         }
       }
@@ -796,7 +796,7 @@ export const restoreFolder2 = async (req) => {
           return {
             statusCode: 400,
             success: false,
-            msg: '복구하려는 곳에 이미 동일한 폴더가 존재합니다.',
+            msg: '복구하려는 곳에 이미 중복된 이름의 폴더가 존재합니다.',
           };
         }
       }
