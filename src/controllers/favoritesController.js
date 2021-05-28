@@ -5,7 +5,7 @@ import {
 
 export const showFavorites = async (req, res, next) => {
   try {
-    let rows = await showFavorites2(req.body);
+    let rows = await showFavorites2(req);
     return res.json(rows);
   } catch (err) {
     return res.status(500).json(err);
@@ -14,7 +14,7 @@ export const showFavorites = async (req, res, next) => {
 
 export const switchFavorites = async (req, res, next) => {
   try {
-    let rows = await switchFavorites2(req.body);
+    let rows = await switchFavorites2(req);
     return res.json(rows);
   } catch (err) {
     return res.status(500).json(err);
