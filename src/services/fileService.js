@@ -323,7 +323,6 @@ export const getTrash2 = async (req) => {
     return im;
   }
   const file_owner = im.userId;
-  console.log(file_owner);
 
   try {
     AWS.config.update(awsConfig);
