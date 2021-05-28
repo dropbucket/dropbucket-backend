@@ -19,10 +19,6 @@ export const uploadS3 = async () => {
   AWS.config.update(awsConfig);
   const s3 = new AWS.S3({ endpoint: 'https://s3.us-east-1.amazonaws.com' });
 
-  const uuidID = uuid.v1().toString();
-  console.log(uuidID);
-  global.uuidID = uuidID;
-
   return multer({
     storage: multerS3({
       s3: s3,
@@ -33,15 +29,31 @@ export const uploadS3 = async () => {
         cb(null, `inline; filename=${file.originalname}`); // inline
       },
       key(req, file, cb) {
+        const uuidID = uuid.v1().toString();
+        global.uuidID = uuidID;
         cb(null, global.uuidID); // s3에 저장될 때의 파일 이름
       },
     }),
   });
 };
 
+// const me = async function (req) {
+//   if (req.headers && req.headers.Authorization) {
+//     let Authorization = req.headers.Authorization.split(' ')[1], decoded;
+//     try {
+//       decoded = jwt.verify(Authorization, secret.secretToken);
+//     } catch (e) {
+//       return { statusCode: 401, msg: 'unauthorized' };
+//     }
+//     let userId = decoded.user_id;
+//     // Fetch the user by id
+//     return { statusCode: 200, userId: userId };
+//   }
+//   return { statusCode: 500, mas: 'Header error' };
+// };
+
 export const uploadFile2 = async (req) => {
   try {
-    console.log(req.file);
     AWS.config.update(awsConfig);
     const docClient = new AWS.DynamoDB.DocumentClient({
       endpoint: 'https://dynamodb.us-east-1.amazonaws.com',
@@ -49,15 +61,15 @@ export const uploadFile2 = async (req) => {
 
     // 같은 parent_id을 가진 파일들 조회
     const fileArrOfSameDir = await docClient
-      .query({
+      .scan({
         TableName: 'FileDirTable',
-        KeyConditionExpression: '#parent_id = :parent_id',
+        FilterExpression: "#parent_id = :parent_id",
         ExpressionAttributeNames: {
-          '#parent_id': 'parent_id',
+          "#parent_id": "parent_id"
         },
         ExpressionAttributeValues: {
           ':parent_id': req.body.parent_id,
-        },
+        }
       })
       .promise();
     // console.log(JSON.stringify(fileArrOfSameDir, null, 2));
@@ -68,14 +80,19 @@ export const uploadFile2 = async (req) => {
     fileArrOfSameDir.Items.forEach((item) => {
       if (item.filename.split('.')[0] == fileName[0]) {
         fileName[0].indexOf('-(') != -1
-          ? (fileName[0] = `${fileName[0].slice(
-              0,
-              fileName[0].indexOf('-(') + 2,
-            )}${+fileName[0][fileName[0].indexOf('-(') + 2] + 1}${')'}`)
+          ? (fileName[0] = `${fileName[0].slice(0,fileName[0].indexOf('-(') + 2,)}${+fileName[0][fileName[0].indexOf('-(') + 2] + 1}${')'}`)
           : (fileName[0] = `${fileName[0]}-(1)`);
       }
     });
 
+    // // 현재 시크릿 키가 없어 사용 불가.
+    // const im = await me(req);
+    // console.log(im);
+    // if (im.statusCode === 401 || im.statusCode === 500) {
+    //   return im;
+    // }
+    // const file_owner = im.userId;
+    
     // DynamoDB table에 item 추가
     const data = await docClient
       .put({
@@ -83,7 +100,7 @@ export const uploadFile2 = async (req) => {
         Item: {
           id: global.uuidID,
           parent_id: req.body.parent_id,
-          file_owner: req.body.file_owner,
+          file_owner: 'tmp',
           filename: fileName.join('.'),
           description: null,
           size: req.file.size,
@@ -97,7 +114,7 @@ export const uploadFile2 = async (req) => {
           last_modified_at: Date.now(),
           shared_until: null,
           directory: 'arn:aws:s3:::dropbucket-file',
-          shared_url: null,
+          // shared_url: null,
         },
       })
       .promise();

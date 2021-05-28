@@ -44,15 +44,6 @@ export const updateFile = async (req, res, next) => {
   }
 };
 
-// export const deleteFile = async (req, res, next) => {
-//   try {
-//     const rows = await deleteFile2(req.body);
-//     return res.json(rows);
-//   } catch (err) {
-//     return res.status(500).json(err);
-//   }
-// };
-
 // 김태영 file 삭제, 휴지통 조회, 복원
 
 export const getTrash = async (req, res, next) => {
