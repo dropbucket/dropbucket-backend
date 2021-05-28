@@ -15,8 +15,26 @@ export const shareItem2 = async (req) => {
     let docClient = new AWS.DynamoDB.DocumentClient();
     let params = {
       TableName: 'FileDirTable',
+      FilterExpression: 'id = :id',
+      ExpressionAttributeValues: {
+        ':id': req.id,
+      },
+    };
+
+    let fileArr = await docClient.scan(params).promise();
+
+    if (fileArr.Count === 0) {
+      return {
+        statusCode: 500,
+        success: false,
+        msg: '해당하는 id의 파일이 존재하지않습니다.',
+      };
+    }
+    let file = fileArr.Items[0];
+    params = {
+      TableName: 'FileDirTable',
       Key: {
-        parent_id: req.parent_id,
+        file_owner: file.file_owner,
         id: req.id,
       },
       UpdateExpression: 'set is_shared = :n',
@@ -27,25 +45,16 @@ export const shareItem2 = async (req) => {
     };
 
     let status = await docClient.update(params).promise();
-    console.log(JSON.stringify(status, null, 2));
+    console.log(file);
 
-    params = {
-      TableName: 'FileDirTable',
-      Key: {
-        parent_id: req.parent_id,
-        id: req.id,
-      },
-    };
-
-    let data = await docClient.get(params).promise();
     let s3 = new AWS.S3();
-    //console.log(data.Item.filename);
 
     // key값 수정 필요 ! s3에 파일이 어떻게 저장 돼있는지에 따라 수정
     const BUCKET_NAME = 'dropbucket123';
     params = {
       Bucket: BUCKET_NAME,
-      Key: data.Item.filename + '.' + data.Item.content_type,
+      Key: file.id,
+      //Key: file.id + '.' + file.content_type,
     };
 
     let url = await s3.getSignedUrlPromise('getObject', params);

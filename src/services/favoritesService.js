@@ -1,9 +1,27 @@
 import AWS from 'aws-sdk';
 import dotenv from 'dotenv';
+import jwt_decode from 'jwt-decode';
 dotenv.config();
+
+const me = async function (req) {
+  if (req.headers && req.headers.authorization) {
+    let authorization = req.headers.authorization.split(' ')[1],
+      decoded;
+    try {
+      decoded = jwt_decode(authorization);
+    } catch (e) {
+      return { statusCode: 401, msg: 'unauthorized' };
+    }
+    let userId = decoded.user_id;
+    // Fetch the user by id
+    return { statusCode: 200, userId: userId };
+  }
+  return { statusCode: 500, msg: 'Header error' };
+};
 
 export const showFavorites2 = async (req) => {
   console.log('connect');
+
   try {
     AWS.config.update({
       region: process.env.AWS_REGION,
@@ -13,13 +31,19 @@ export const showFavorites2 = async (req) => {
       //sessionToken: process.env.DYNAMODB_SESSION_TOKEN,
     });
 
+    const im = await me(req);
+    if (im.statusCode === 401 || im.statusCode === 500) {
+      return im;
+    }
+    const file_owner = im.userId;
+
     let docClient = new AWS.DynamoDB.DocumentClient();
     let params = {
       TableName: 'FileDirTable',
       FilterExpression: 'is_starred = :tr and file_owner = :fo',
       ExpressionAttributeValues: {
         ':tr': true,
-        ':fo': req.file_owner,
+        ':fo': file_owner,
       },
     };
 
@@ -51,12 +75,18 @@ export const switchFavorites2 = async (req) => {
       //sessionToken: process.env.DYNAMODB_SESSION_TOKEN,
     });
 
+    const im = await me(req);
+    if (im.statusCode === 401 || im.statusCode === 500) {
+      return im;
+    }
+    const file_owner = im.userId;
+
     let docClient = new AWS.DynamoDB.DocumentClient();
     let params = {
       TableName: 'FileDirTable',
       Key: {
-        parent_id: req.parent_id,
-        id: req.id,
+        file_owner: file_owner,
+        id: req.body.id,
       },
     };
 
@@ -67,8 +97,8 @@ export const switchFavorites2 = async (req) => {
     params = {
       TableName: 'FileDirTable',
       Key: {
-        parent_id: req.parent_id,
-        id: req.id,
+        file_owner: file_owner,
+        id: req.body.id,
       },
       UpdateExpression: 'set is_starred = :n',
       ExpressionAttributeValues: {
