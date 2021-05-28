@@ -135,30 +135,21 @@ export const uploadFile2 = async (req) => {
 export const downloadFile2 = async (req) => {
   try {
     AWS.config.update(awsConfig);
-    const docClient = new AWS.DynamoDB.DocumentClient({
-      endpoint: 'https://dynamodb.us-east-1.amazonaws.com',
-    });
     const s3 = new AWS.S3({ endpoint: 'https://s3.us-east-1.amazonaws.com' });
 
-    s3.getObject(
-      {
-        Bucket: 'dropbucket-file',
-        Key: req.id,
-      },
-      (err, data) => {
-        if (err) {
-          // an error occurred
-          console.log(err, err.stack);
-        } else {
-          // successful response
-          // 로컬상에 다운로드 받길 원하면 주석 풀고 폴더 및 파일 하나를 아무대나 생성하고 절대값 주소를 아래에 넣으면 된다.
-          // fs.writeFileSync('/Users/dykoon/workspace/dropbucket-backend/download/test.png', data.Body);  // 절대값 주소
-          console.log(data);
-        }
-      },
-    );
+    s3.getObject({
+      Bucket: 'dropbucket-file',
+      Key: req.id,
+    }, (err, data) => {
+      if (err) {  // an error occurred
+        console.log(err, err.stack);
+      } else {  // successful response
+      // 로컬상에 다운로드 받길 원하면 주석 풀고 폴더 및 파일 하나를 아무대나 생성하고 절대값 주소를 아래에 넣으면 된다.
+      // fs.writeFileSync('/Users/dykoon/workspace/dropbucket-backend/download/test.png', data.Body);  // 절대값 주소
+      console.log(data);
+      }
+    });
 
-    // db에서 id를 가진 filename을 찾아서 변경 추가 예정
     // 현재는 로컬상에 저장한다. 추후에 front단으로 전달 예정
 
     return {
@@ -185,19 +176,18 @@ export const findFile2 = async (req) => {
 
     // 같은 parent_id을 가진 파일들 조회
     const fileArrOfSameDir = await docClient
-      .query({
+      .scan({
         TableName: 'FileDirTable',
-        KeyConditionExpression: '#parent_id = :parent_id',
+        FilterExpression: "#parent_id = :parent_id",
         ExpressionAttributeNames: {
-          '#parent_id': 'parent_id',
+          "#parent_id": "parent_id"
         },
         ExpressionAttributeValues: {
           ':parent_id': req.parent_id,
-        },
+        }
       })
       .promise();
 
-    // const data = await docClient.get(params).promise();
     console.log(JSON.stringify(fileArrOfSameDir, null, 2));
     return {
       statusCode: 200,
