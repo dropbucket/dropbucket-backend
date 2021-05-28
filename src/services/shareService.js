@@ -1,47 +1,65 @@
+import AWS from 'aws-sdk';
 import dotenv from 'dotenv';
-const AWS = require("aws-sdk");
 dotenv.config();
-const BUCKET_NAME = "dropbucketpractice";
-var table = "FileDirTable";
-const s3 = new AWS.S3();
-var docClient = new AWS.DynamoDB.DocumentClient()
 
-export const SetShare = async (req) => {
-    console.log(req.body);
-    const id = req.body.id;
-    const parent_id = req.body.parent_id;
+export const shareItem2 = async (req) => {
+  console.log('connect');
+  try {
+    AWS.config.update({
+      region: process.env.AWS_REGION,
+      //   endpoint: 'https://dynamodb.us-east-1.amazonaws.com',
+      accessKeyId: process.env.DYNAMODB_ACCESS_KEY,
+      secretAccessKey: process.env.DYNAMODB_SECRET_ACCESS_KEY,
+      //sessionToken: process.env.DYNAMODB_SESSION_TOKEN,
+    });
+    let docClient = new AWS.DynamoDB.DocumentClient();
+    let params = {
+      TableName: 'FileDirTable',
+      Key: {
+        parent_id: req.parent_id,
+        id: req.id,
+      },
+      UpdateExpression: 'set is_shared = :n',
+      ExpressionAttributeValues: {
+        ':n': true,
+      },
+      ReturnValues: 'UPDATED_NEW',
+    };
 
-    var params = {
-        TableName:table,
-        Key:{
-            "id": id,
-            "parent_id": parent_id
-        },
-        UpdateExpression: "set is_folder = :i"
+    let status = await docClient.update(params).promise();
+    console.log(JSON.stringify(status, null, 2));
+
+    params = {
+      TableName: 'FileDirTable',
+      Key: {
+        parent_id: req.parent_id,
+        id: req.id,
+      },
     };
 
     let data = await docClient.get(params).promise();
-    let is_shared = data.Item.is_shared;
+    let s3 = new AWS.S3();
+    //console.log(data.Item.filename);
 
+    // key값 수정 필요 ! s3에 파일이 어떻게 저장 돼있는지에 따라 수정
+    const BUCKET_NAME = 'dropbucket123';
     params = {
-        TableName: 'FileDirTable',
-        Key: {
-          parent_id: req.body.parent_id,
-          id: req.body.id,
-        },
-        UpdateExpression: 'set is_shared = :i',
-        ExpressionAttributeValues: {
-          ':i': !is_shared,
-        },
-        ReturnValues: 'UPDATED_NEW',
-      };
+      Bucket: BUCKET_NAME,
+      Key: data.Item.filename + '.' + data.Item.content_type,
+    };
 
-    console.log("Set share");
-    docClient.update(params, function(err, data) {
-        if (err) {
-            console.error("Unable to update item. Error JSON:", JSON.stringify(err, null, 2));
-        } else {
-            console.log("UpdateItem succeeded:", JSON.stringify(data, null, 2));
-        }
-    }); 
-}
+    let url = await s3.getSignedUrlPromise('getObject', params);
+
+    const resMessage = {
+      statusCode: 200,
+      success: true,
+      msg: '파일공유 url생성 완료',
+      url: url,
+    };
+
+    return resMessage;
+  } catch (err) {
+    console.log(err);
+    throw Error(err);
+  }
+};
