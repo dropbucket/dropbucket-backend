@@ -45,7 +45,7 @@ export const shareItem2 = async (req) => {
     };
 
     let status = await docClient.update(params).promise();
-    console.log(JSON.stringify(status, null, 2));
+    console.log(file);
 
     let s3 = new AWS.S3();
 
