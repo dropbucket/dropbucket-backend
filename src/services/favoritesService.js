@@ -55,7 +55,7 @@ export const switchFavorites2 = async (req) => {
     let params = {
       TableName: 'FileDirTable',
       Key: {
-        parent_id: req.parent_id,
+        file_owner: req.file_owner,
         id: req.id,
       },
     };
@@ -67,7 +67,7 @@ export const switchFavorites2 = async (req) => {
     params = {
       TableName: 'FileDirTable',
       Key: {
-        parent_id: req.parent_id,
+        file_owner: req.file_owner,
         id: req.id,
       },
       UpdateExpression: 'set is_starred = :n',
