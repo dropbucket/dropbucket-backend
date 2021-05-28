@@ -4,6 +4,7 @@ import {
   findFile2,
   updateFile2,
   getTrash2,
+  deleteFile2,
 } from '../services/fileService.js';
 
 export const uploadFile = async (req, res, next) => {
@@ -56,6 +57,15 @@ export const updateFile = async (req, res, next) => {
 export const getTrash = async (req, res, next) => {
   try {
     let rows = await getTrash2(req);
+    return res.json(rows);
+  } catch (err) {
+    return res.status(500).json(err);
+  }
+};
+
+export const deleteFile = async (req, res, next) => {
+  try {
+    let rows = await deleteFile2(req);
     return res.json(rows);
   } catch (err) {
     return res.status(500).json(err);

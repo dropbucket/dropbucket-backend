@@ -5,6 +5,7 @@ import {
   findFile,
   updateFile,
   getTrash,
+  deleteFile,
 } from '../controllers/fileController.js';
 import { uploadS3 } from '../services/fileService.js';
 
@@ -20,5 +21,5 @@ router.patch('/', updateFile); // 파일 수정
 
 // 김태영 file 삭제, 휴지통 조회, 복원
 router.get('/trash', getTrash); // 쓰레기통에 있는 폴더 & 파일 조회
-
+router.delete('/', deleteFile);
 export default router;

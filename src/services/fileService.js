@@ -313,6 +313,8 @@ export const updateFile2 = async (req) => {
 //   }
 // };
 
+// 김태영 file 삭제, 휴지통 조회, 복원
+
 export const getTrash2 = async (req) => {
   console.log('connect');
 
@@ -377,6 +379,122 @@ const file_owner = im.userId;
       success: true,
       msg: '휴지통 조회 완료',
       data: data,
+    };
+    return resMessage;
+  } catch (err) {
+    console.log(err);
+    throw Error(err);
+  }
+};
+
+export const deleteFile2 = async (req) => {
+  console.log('connect');
+  // 현재 시크릿 키가 없어 사용 불가.
+  /* const im = await me(req);
+  if (im.statusCode === 401 || im.statusCode === 500) {
+    return im;
+  }
+  const file_owner = im.userId;
+  */
+  const file_owner = 'aljenfalkjwefnlakjwef';
+
+  try {
+    AWS.config.update(awsConfig);
+    const docClient = new AWS.DynamoDB.DocumentClient();
+
+    const OwnerParam = {
+      TableName: 'FileDirTable',
+      Key: {
+        file_owner: file_owner,
+        id: req.body.id,
+      },
+    };
+
+    const deleteF = (await docClient.get(OwnerParam).promise()).Item;
+
+    // 폴더이름
+    const fileName = deleteF.filename;
+
+    // 파일 주인 확인
+    if (file_owner !== deleteF.file_owner) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '파일을 삭제할 권한이 없습니다.',
+      };
+    }
+
+    if (deleteF.is_folder === true) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '파일을 삭제할 권한이 없습니다.',
+      };
+    }
+
+    if (deleteF.is_deleted) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '이미 삭제된 파일 입니다.',
+      };
+    }
+
+    const overlapParam = {
+      TableName: 'FileDirTable',
+      KeyConditionExpression: '#file_owner = :file_owner',
+      ExpressionAttributeNames: {
+        '#file_owner': 'file_owner',
+      },
+      ExpressionAttributeValues: {
+        ':file_owner': file_owner,
+      },
+    };
+
+    const files = (await docClient.query(overlapParam).promise()).Items;
+
+    // 파일명 중복 체크
+    for (let i = 0; i < files.length; i++) {
+      if (
+        fileName === files[i].filename &&
+        files[i].is_deleted &&
+        files[i].is_folder === false
+      ) {
+        return {
+          statusCode: 400,
+          success: false,
+          msg: '휴지통에 이미 동일한 파일이 존재합니다.',
+        };
+      }
+    }
+    const change = {
+      TableName: 'FileDirTable',
+      Key: {
+        id: req.body.id,
+        file_owner: file_owner,
+      },
+      UpdateExpression:
+        'SET #is_deleted = :is_deleted, #deleted_at = :deleted_at',
+      ExpressionAttributeNames: {
+        '#is_deleted': 'is_deleted',
+        '#deleted_at': 'deleted_at',
+        //'#size': 'size',
+      },
+      // 위에서 고른것을 변경한다. 이때 지정해준 이름을 사용해야 한다.
+      ExpressionAttributeValues: {
+        ':is_deleted': true,
+        ':deleted_at': Date.now(),
+        //'#size': location_parent_size + moveF.size,
+      },
+      ReturnValues: 'UPDATED_NEW',
+    };
+
+    const data = docClient.update(change).promise();
+
+    const resMessage = {
+      statusCode: 200,
+      success: true,
+      msg: '파일 삭제 완료',
     };
     return resMessage;
   } catch (err) {
