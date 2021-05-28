@@ -5,6 +5,8 @@ import dotenv from 'dotenv';
 import uuid from 'uuid';
 import fs from 'fs';
 import jwt from 'express-jwt';
+import { me } from '../utils/decode.js';
+
 dotenv.config();
 
 // AWS Config
@@ -316,16 +318,12 @@ export const updateFile2 = async (req) => {
 // 김태영 file 삭제, 휴지통 조회, 복원
 
 export const getTrash2 = async (req) => {
-  console.log('connect');
-
-  const file_owner = 'aljenfalkjwefnlakjwef';
-  // 현재 시크릿 키가 없어 사용 불가.
-  /* const im = await me(req);
-if (im.statusCode === 401 || im.statusCode === 500) {
-  return im;
-}
-const file_owner = im.userId;
-*/
+  const im = await me(req);
+  if (im.statusCode === 401 || im.statusCode === 500) {
+    return im;
+  }
+  const file_owner = im.userId;
+  console.log(file_owner);
 
   try {
     AWS.config.update(awsConfig);
@@ -388,15 +386,11 @@ const file_owner = im.userId;
 };
 
 export const deleteFile2 = async (req) => {
-  console.log('connect');
-  // 현재 시크릿 키가 없어 사용 불가.
-  /* const im = await me(req);
+  const im = await me(req);
   if (im.statusCode === 401 || im.statusCode === 500) {
     return im;
   }
   const file_owner = im.userId;
-  */
-  const file_owner = 'aljenfalkjwefnlakjwef';
 
   try {
     AWS.config.update(awsConfig);
@@ -504,15 +498,11 @@ export const deleteFile2 = async (req) => {
 };
 
 export const restoreFile2 = async (req) => {
-  console.log('connect');
-  // 현재 시크릿 키가 없어 사용 불가.
-  /* const im = await me(req);
+  const im = await me(req);
   if (im.statusCode === 401 || im.statusCode === 500) {
     return im;
   }
   const file_owner = im.userId;
-  */
-  const file_owner = 'aljenfalkjwefnlakjwef';
 
   try {
     AWS.config.update(awsConfig);
