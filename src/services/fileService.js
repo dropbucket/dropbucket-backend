@@ -362,13 +362,13 @@ const file_owner = im.userId;
       },
     };
 
-    const folders = (await docClient.query(rootValidParam).promise()).Items;
+    const files = (await docClient.query(rootValidParam).promise()).Items;
 
     let data = [];
 
-    for (let i = 0; i < folders.length; i++) {
-      if (folders[i].is_deleted === true) {
-        data.push(folders[i]);
+    for (let i = 0; i < files.length; i++) {
+      if (files[i].is_deleted === true) {
+        data.push(files[i]);
       }
     }
 
@@ -495,6 +495,191 @@ export const deleteFile2 = async (req) => {
       statusCode: 200,
       success: true,
       msg: '파일 삭제 완료',
+    };
+    return resMessage;
+  } catch (err) {
+    console.log(err);
+    throw Error(err);
+  }
+};
+
+export const restoreFile2 = async (req) => {
+  console.log('connect');
+  // 현재 시크릿 키가 없어 사용 불가.
+  /* const im = await me(req);
+  if (im.statusCode === 401 || im.statusCode === 500) {
+    return im;
+  }
+  const file_owner = im.userId;
+  */
+  const file_owner = 'aljenfalkjwefnlakjwef';
+
+  try {
+    AWS.config.update(awsConfig);
+    const docClient = new AWS.DynamoDB.DocumentClient();
+
+    const OwnerParam = {
+      TableName: 'FileDirTable',
+      Key: {
+        file_owner: file_owner,
+        id: req.body.id,
+      },
+    };
+
+    const deleteF = (await docClient.get(OwnerParam).promise()).Item;
+
+    // 파일이름
+    const fileName = deleteF.filename;
+
+    // 파일 주인 확인
+    if (file_owner !== deleteF.file_owner) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '파일을 복구할 권한이 없습니다.',
+      };
+    }
+
+    // 파일인지 확인
+    if (deleteF.is_folder === true) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '파일을 복구할 권한이 없습니다.',
+      };
+    }
+
+    if (deleteF.is_deleted === false) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '삭제되지 않은 파일입니다.',
+      };
+    }
+
+    const overlapParam = {
+      TableName: 'FileDirTable',
+      KeyConditionExpression: '#file_owner = :file_owner',
+      ExpressionAttributeNames: {
+        '#file_owner': 'file_owner',
+      },
+      ExpressionAttributeValues: {
+        ':file_owner': file_owner,
+      },
+    };
+
+    const files = (await docClient.query(overlapParam).promise()).Items;
+
+    // 상위 폴더가 is_deleted 상태인지 확인. 상위폴더가 삭제상태이면
+    // 해당 파일의 parent_id를 루트폴더로해서 복구한다.
+    let up_foloder_idx = -1;
+    for (let i = 0; i < files.length; i++) {
+      if (files[i].id === deleteF.parent_id) {
+        up_foloder_idx = i;
+        break;
+      }
+    }
+
+    let change;
+
+    // 상위폴더가 삭제되어있는 경우
+    if (files[up_foloder_idx].is_deleted === true) {
+      let root_idx;
+      for (let i = 0; i < files.length; i++) {
+        if (files[i].parent_id === file_owner) {
+          root_idx = i;
+          break;
+        }
+      }
+
+      // 파일명 중복 체크
+      // 삭제되지 않았어야 하고
+      // 파일여야하고, 부모아이디와 루트 소속인데
+      // 파일명이 같다? 그러면 중복
+      for (let i = 0; i < files.length; i++) {
+        if (
+          fileName === files[i].filename &&
+          files[i].is_deleted !== true &&
+          files[i].is_folder === false &&
+          files[i].parent_id === files[root_idx].id
+        ) {
+          return {
+            statusCode: 400,
+            success: false,
+            msg: '복구하려는 곳에 이미 동일한 이름을 가진 파일이 존재합니다.',
+          };
+        }
+      }
+
+      change = {
+        TableName: 'FileDirTable',
+        Key: {
+          id: req.body.id,
+          file_owner: file_owner,
+        },
+        UpdateExpression:
+          'SET #parent_id = :parent_id, #is_deleted = :is_deleted, #deleted_at = :deleted_at',
+        ExpressionAttributeNames: {
+          '#parent_id': 'parent_id',
+          '#is_deleted': 'is_deleted',
+          '#deleted_at': 'deleted_at',
+          //'#size': 'size',
+        },
+        // 위에서 고른것을 변경한다. 이때 지정해준 이름을 사용해야 한다.
+        ExpressionAttributeValues: {
+          ':is_deleted': false,
+          ':parent_id': files[root_idx].id,
+          ':deleted_at': null,
+          //'#size': location_parent_size + moveF.size,
+        },
+        ReturnValues: 'UPDATED_NEW',
+      };
+    } else {
+      // 폴더 이름 중복 체크
+      for (let i = 0; i < files.length; i++) {
+        if (
+          fileName === files[i].filename &&
+          files[i].is_deleted !== true &&
+          files[i].is_folder === false &&
+          files[i].parent_id === deleteF.parent_id
+        ) {
+          return {
+            statusCode: 400,
+            success: false,
+            msg: '복구하려는 곳에 이미 동일한 이름을 가진 파일이 존재합니다.',
+          };
+        }
+      }
+
+      change = {
+        TableName: 'FileDirTable',
+        Key: {
+          id: req.body.id,
+          file_owner: file_owner,
+        },
+        UpdateExpression:
+          'SET #is_deleted = :is_deleted, #deleted_at = :deleted_at',
+        ExpressionAttributeNames: {
+          '#is_deleted': 'is_deleted',
+          '#deleted_at': 'deleted_at',
+          //'#size': 'size',
+        },
+        // 위에서 고른것을 변경한다. 이때 지정해준 이름을 사용해야 한다.
+        ExpressionAttributeValues: {
+          ':is_deleted': false,
+          ':deleted_at': null,
+          //'#size': location_parent_size + moveF.size,
+        },
+        ReturnValues: 'UPDATED_NEW',
+      };
+    }
+
+    const data = docClient.update(change).promise();
+
+    const resMessage = {
+      statusCode: 200,
+      success: true,
+      msg: '파일 복구 완료',
     };
     return resMessage;
   } catch (err) {
