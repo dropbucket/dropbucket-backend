@@ -64,7 +64,15 @@ export const updateFolder2 = async (req) => {
     }
 
     // 폴더 주인 및 폴더인지 확인
-    if (file_owner !== owner.file_owner && owner.is_folder !== true) {
+    if (file_owner !== owner.file_owner) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '변경 권한이 없습니다.',
+      };
+    }
+
+    if (owner.is_folder !== true) {
       return {
         statusCode: 400,
         success: false,
@@ -243,7 +251,15 @@ export const moveFolder2 = async (req) => {
     const folderName = moveF.filename;
 
     // 폴더 주인 및 폴더인지 확인
-    if (file_owner !== owner.file_owner && owner.is_folder !== true) {
+    if (file_owner !== owner.file_owner) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '변경 권한이 없습니다.',
+      };
+    }
+
+    if (owner.is_folder !== true) {
       return {
         statusCode: 400,
         success: false,
@@ -279,6 +295,7 @@ export const moveFolder2 = async (req) => {
       }
     }
     /*
+    폴더 사이즈는 따로 계산할 필요 없을것같음. 필요없다고 확인하면 그냥 지우기
     let before_parent_size = 0;
     for (let i = 0; i < folders.length; i++) {
       if (folders[i].id === moveF.parent_id) {
@@ -438,10 +455,7 @@ export const createFolder2 = async (req) => {
       }
 
       // 폴더 주인 확인
-      if (
-        folders[parentFolder].file_owner !== file_owner &&
-        folders[parentFolder].is_folder !== true
-      ) {
+      if (folders[parentFolder].file_owner !== file_owner) {
         return {
           statusCode: 400,
           success: false,
@@ -449,6 +463,14 @@ export const createFolder2 = async (req) => {
         };
       }
 
+      // parent가 폴더인지 확인
+      if (folders[parentFolder].is_folder !== true) {
+        return {
+          statusCode: 400,
+          success: false,
+          msg: '폴더를 생성할 권한이 없습니다.',
+        };
+      }
       // 파일명 중복 체크
       for (let i = 0; i < folders.length; i++) {
         if (
@@ -543,7 +565,16 @@ export const deleteFolder2 = async (req) => {
     const folderName = deleteF.filename;
 
     // 폴더 주인 확인
-    if (file_owner !== deleteF.file_owner && deleteF.is_folder !== true) {
+    if (file_owner !== deleteF.file_owner) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '폴더를 삭제할 권한이 없습니다.',
+      };
+    }
+
+    // 폴더인자 확인
+    if (deleteF.is_folder !== true) {
       return {
         statusCode: 400,
         success: false,
@@ -575,9 +606,9 @@ export const deleteFolder2 = async (req) => {
     // 파일명 중복 체크
     for (let i = 0; i < folders.length; i++) {
       if (
+        folderName === folders[i].filename &&
         folders[i].is_deleted &&
-        folders[i].is_folder &&
-        folderName === folders[i].filename
+        folders[i].is_folder
       ) {
         return {
           statusCode: 400,
@@ -651,7 +682,16 @@ export const restoreFolder2 = async (req) => {
     const folderName = deleteF.filename;
 
     // 폴더 주인 확인
-    if (file_owner !== deleteF.file_owner && deleteF.is_folder !== true) {
+    if (file_owner !== deleteF.file_owner) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '폴더를 복구할 권한이 없습니다.',
+      };
+    }
+
+    // 폴더인지 확인
+    if (deleteF.is_folder !== true) {
       return {
         statusCode: 400,
         success: false,
@@ -708,10 +748,10 @@ export const restoreFolder2 = async (req) => {
       // 폴더명이 같다? 그러면 중복
       for (let i = 0; i < folders.length; i++) {
         if (
+          folderName === folders[i].filename &&
           folders[i].is_deleted !== true &&
           folders[i].is_folder &&
-          folders[i].parent_id === folders[root_idx].id &&
-          folderName === folders[i].filename
+          folders[i].parent_id === folders[root_idx].id
         ) {
           return {
             statusCode: 400,
@@ -748,10 +788,10 @@ export const restoreFolder2 = async (req) => {
       // 폴더 이름 중복 체크
       for (let i = 0; i < folders.length; i++) {
         if (
+          folderName === folders[i].filename &&
           folders[i].is_deleted !== true &&
           folders[i].is_folder &&
-          folders[i].parent_id === deleteF.parent_id &&
-          folderName === folders[i].filename
+          folders[i].parent_id === deleteF.parent_id
         ) {
           return {
             statusCode: 400,
