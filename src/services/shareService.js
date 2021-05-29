@@ -1,5 +1,6 @@
 import AWS from 'aws-sdk';
 import dotenv from 'dotenv';
+import { me } from '../utils/decode.js';
 dotenv.config();
 
 export const shareItem2 = async (req) => {
@@ -17,7 +18,7 @@ export const shareItem2 = async (req) => {
       TableName: 'FileDirTable',
       FilterExpression: 'id = :id',
       ExpressionAttributeValues: {
-        ':id': req.id,
+        ':id': req.body.id,
       },
     };
 
@@ -25,17 +26,26 @@ export const shareItem2 = async (req) => {
 
     if (fileArr.Count === 0) {
       return {
-        statusCode: 500,
+        statusCode: 400,
         success: false,
         msg: '해당하는 id의 파일이 존재하지않습니다.',
       };
     }
+    const im = await me(req);
     let file = fileArr.Items[0];
+
+    if (file.file_owner !== im.userId) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '권한이 없습니다',
+      };
+    }
     params = {
       TableName: 'FileDirTable',
       Key: {
         file_owner: file.file_owner,
-        id: req.id,
+        id: req.body.id,
       },
       UpdateExpression: 'set is_shared = :n',
       ExpressionAttributeValues: {
