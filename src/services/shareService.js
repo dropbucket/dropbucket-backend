@@ -63,8 +63,8 @@ export const shareItem2 = async (req) => {
     const BUCKET_NAME = 'dropbucket123';
     params = {
       Bucket: BUCKET_NAME,
-      Key: file.id,
-      //Key: file.id + '.' + file.content_type,
+      Key: req.body.id,
+      //Key: req.body.id + '.' + file.content_type,
     };
 
     let url = await s3.getSignedUrlPromise('getObject', params);
