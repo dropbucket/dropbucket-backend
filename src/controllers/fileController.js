@@ -6,6 +6,7 @@ import {
   getTrash2,
   deleteFile2,
   restoreFile2,
+  deleteToS32,
 } from '../services/fileService.js';
 
 export const uploadFile = async (req, res, next) => {
@@ -76,6 +77,15 @@ export const deleteFile = async (req, res, next) => {
 export const restoreFile = async (req, res, next) => {
   try {
     let rows = await restoreFile2(req);
+    return res.json(rows);
+  } catch (err) {
+    return res.status(500).json(err);
+  }
+};
+
+export const deleteToS3 = async (req, res, next) => {
+  try {
+    let rows = await deleteToS32(req);
     return res.json(rows);
   } catch (err) {
     return res.status(500).json(err);

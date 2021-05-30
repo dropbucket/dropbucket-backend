@@ -7,6 +7,7 @@ import {
   getTrash,
   deleteFile,
   restoreFile,
+  deleteToS3,
 } from '../controllers/fileController.js';
 import { uploadS3 } from '../services/fileService.js';
 
@@ -24,4 +25,5 @@ router.patch('/', updateFile); // 파일 수정
 router.get('/trash', getTrash); // 쓰레기통에 있는 폴더 & 파일 조회
 router.delete('/', deleteFile);
 router.patch('/trash', restoreFile);
+router.delete('/trash', deleteToS3);
 export default router;

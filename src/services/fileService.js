@@ -676,3 +676,216 @@ export const restoreFile2 = async (req) => {
     throw Error(err);
   }
 };
+
+export const deleteToS32 = async (req) => {
+  const im = await me(req);
+  if (im.statusCode === 401 || im.statusCode === 500) {
+    return im;
+  }
+  const file_owner = im.userId;
+
+  try {
+    AWS.config.update(awsConfig);
+    const docClient = new AWS.DynamoDB.DocumentClient();
+
+    // 해당 file_owner가 들고있는 모든 내역을 가져온다.
+    const rootValidParam = {
+      TableName: 'FileDirTable',
+      KeyConditionExpression: '#file_owner = :file_owner',
+      ExpressionAttributeNames: {
+        '#file_owner': 'file_owner',
+      },
+      ExpressionAttributeValues: {
+        ':file_owner': file_owner,
+      },
+    };
+
+    const files = (await docClient.query(rootValidParam).promise()).Items;
+
+    // 아무거나 들어가서 file Owner를 확인하면 되니 이렇게 한다.
+    const owner = files[0];
+
+    // 해당 파일의 주인인지 확인
+    if (file_owner !== owner.file_owner) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '권한이 없습니다.',
+      };
+    }
+
+    let s3DeleteList = [];
+    let dbDeleteList = [];
+    let delCheck = [];
+
+    // 삭제할 파일이나 폴더의 id를 보내주지 않으면 그냥 모두 삭제한다.
+    if (req.body.id === undefined) {
+      // first depth
+      for (let i = 0; i < files.length; i++) {
+        if (files[i].is_deleted === true) {
+          delCheck.push(files[i]);
+        }
+      }
+
+      // child check
+      while (true) {
+        if (delCheck.length === 0) break;
+        let childFiles = [];
+
+        // 전체에서 delCheck에 있는 것들을 부모로 가지는 있는애들을
+        // childFiles에 넣는다.
+        for (let i = 0; i < files.length; i++) {
+          for (let j = 0; j < delCheck.length; j++) {
+            if (files[i].parent_id === delCheck[j].id) {
+              childFiles.push(files[i]);
+              break;
+            }
+          }
+        }
+
+        // deleteList에 delCheck에 있던 것들을 넣어준다.
+        for (let i = 0; i < delCheck.length; i++) {
+          if (delCheck[i].is_folder !== true)
+            s3DeleteList.push({ Key: delCheck[i].id });
+          dbDeleteList.push({ Key: delCheck[i].id });
+        }
+
+        // delCheck를 비운다.
+        delCheck = [];
+
+        // childFiles를 넣어주고 다시 반복.
+        for (let i = 0; i < childFiles.length; i++) {
+          delCheck.push(childFiles[i]);
+        }
+      }
+    } else {
+      // id를 이용해서 폴더 또는 파일을 가져온다.
+      let target;
+      for (let i = 0; i < files.length; i++) {
+        if (files[i].id === req.body.id) {
+          target = files[i];
+          break;
+        }
+      }
+
+      if (target.is_deleted === false) {
+        return {
+          statusCode: 400,
+          success: false,
+          msg: '삭제되지 않은 폴더 또는 파일을 지울 수 없습니다.',
+        };
+      }
+
+      // 파일인 경우
+      if (target.is_folder !== true) {
+        s3DeleteList.push({ Key: target.id });
+        dbDeleteList.push({ Key: target.id });
+      }
+      // 폴더인 경우
+      else {
+        delCheck.push(target);
+        // child check
+        while (true) {
+          if (delCheck.length === 0) break;
+          let childFiles = [];
+
+          // 전체에서 delCheck에 있는 것들을 부모로 가지는 있는애들을
+          // childFiles에 넣는다.
+          for (let i = 0; i < files.length; i++) {
+            for (let j = 0; j < delCheck.length; j++) {
+              if (files[i].parent_id === delCheck[j].id) {
+                childFiles.push(files[i]);
+                break;
+              }
+            }
+          }
+
+          // deleteList에 delCheck에 있던 것들을 넣어준다.
+          for (let i = 0; i < delCheck.length; i++) {
+            if (delCheck[i].is_folder !== true)
+              s3DeleteList.push({ Key: delCheck[i].id });
+            dbDeleteList.push({ Key: delCheck[i].id });
+          }
+
+          // delCheck를 비운다.
+          delCheck = [];
+
+          // childFiles를 넣어주고 다시 반복.
+          for (let i = 0; i < childFiles.length; i++) {
+            delCheck.push(childFiles[i]);
+          }
+        }
+      }
+    }
+
+    if (dbDeleteList.length === 0) {
+      return {
+        statusCode: 400,
+        success: false,
+        msg: '삭제된 폴더 또는 파일이 없습니다.',
+      };
+    }
+
+    // 중복 제거
+    s3DeleteList = s3DeleteList.reduce(function (acc, current) {
+      if (acc.findIndex(({ Key }) => Key === current.Key) === -1) {
+        acc.push(current);
+      }
+      return acc;
+    }, []);
+    // 중복 제거
+    dbDeleteList = dbDeleteList.reduce(function (acc, current) {
+      if (acc.findIndex(({ Key }) => Key === current.Key) === -1) {
+        acc.push(current);
+      }
+      return acc;
+    }, []);
+
+    let s3Objects = [];
+
+    s3DeleteList.forEach(function (ele, index, arr) {
+      let thisKey = {
+        Key: ele.Key,
+      };
+      s3Objects.push(thisKey);
+    });
+
+    const s3 = new AWS.S3();
+
+    // s3에서 삭제하는 부분
+    // 폴더만 있는경우 s3Objects 에 아무것도 없을 수 있다.
+    // 따라서 비어있는지 확인하고 s3에 지우는 작업을 수행해야한다.
+    if (s3Objects.length !== 0) {
+      let s3Params = {
+        Bucket: 'myawsbucket-taeyoung',
+        Delete: {
+          Objects: s3Objects,
+          Quiet: false,
+        },
+      };
+      const data = await s3.deleteObjects(s3Params).promise();
+    }
+
+    // db에서 삭제하는 부분
+    for (let i = 0; i < dbDeleteList.length; i++) {
+      var dbParams = {
+        TableName: 'FileDirTable',
+        Key: {
+          file_owner: file_owner,
+          id: dbDeleteList[i].Key,
+        },
+      };
+
+      let temp = await docClient.delete(dbParams).promise();
+    }
+    const resMessage = {
+      statusCode: 200,
+      success: true,
+      msg: '삭제 완료',
+    };
+    return resMessage;
+  } catch (err) {
+    console.log(err);
+    throw Error(err);
+  }
+};
